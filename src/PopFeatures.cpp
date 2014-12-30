@@ -11,8 +11,7 @@
 
 
 
-TPopFeatures::TPopFeatures() :
-	mRunning			( true )
+TPopFeatures::TPopFeatures()
 {
 	AddJobHandler("exit", TParameterTraits(), *this, &TPopFeatures::OnExit );
 
@@ -34,7 +33,7 @@ void TPopFeatures::AddChannel(std::shared_ptr<TChannel> Channel)
 
 void TPopFeatures::OnExit(TJobAndChannel& JobAndChannel)
 {
-	mRunning = false;
+	mConsoleApp.Exit();
 	
 	//	should probably still send a reply
 	TJobReply Reply( JobAndChannel );
@@ -200,10 +199,10 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	CommandLineChannel->mOnJobSent.AddListener( RelayFunc );
 	
 	//	run
-	Soy::Platform::TConsoleApp Console( App );
-	auto Result = static_cast<TPopAppError::Type>( Console.RunLoop() );
+	App.mConsoleApp.WaitForExit();
+
 	gStdioChannel.reset();
-	return Result;
+	return TPopAppError::Success;
 }
 
 

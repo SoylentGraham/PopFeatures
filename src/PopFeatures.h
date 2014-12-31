@@ -16,6 +16,7 @@ public:
 
 	void			OnExit(TJobAndChannel& JobAndChannel);
 	void			OnGetFeature(TJobAndChannel& JobAndChannel);
+	void			OnNewFrame(TJobAndChannel& JobAndChannel);
 	
 public:
 	Soy::Platform::TConsoleApp	mConsoleApp;

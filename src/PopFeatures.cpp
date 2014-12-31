@@ -14,7 +14,9 @@
 TPopFeatures::TPopFeatures()
 {
 	AddJobHandler("exit", TParameterTraits(), *this, &TPopFeatures::OnExit );
-
+	
+	AddJobHandler("newframe", TParameterTraits(), *this, &TPopFeatures::OnNewFrame );
+	
 	TParameterTraits GetFeatureTraits;
 	GetFeatureTraits.mAssumedKeys.PushBack("x");
 	GetFeatureTraits.mAssumedKeys.PushBack("y");
@@ -106,6 +108,20 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 }
 
 
+void TPopFeatures::OnNewFrame(TJobAndChannel& JobAndChannel)
+{
+	auto& Job = JobAndChannel.GetJob();
+	
+	//	pull image
+	auto ImageParam = Job.mParams.GetDefaultParam();
+	SoyPixels Image;
+	if ( !ImageParam.Decode( Image ) )
+	{
+		std::Debug << "Failed to decode image" << std::endl;
+		return;
+	}
+	std::Debug << "Decoded image " << Image.GetWidth() << "x" << Image.GetHeight() << " " << Image.GetFormat() << std::endl;
+}
 
 
 

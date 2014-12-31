@@ -175,16 +175,16 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	//	create stdio channel for commandline output
 	auto StdioChannel = CreateChannelFromInputString("std:", SoyRef("stdio") );
 	gStdioChannel = StdioChannel;
-	auto HttpChannel = CreateChannelFromInputString("http:8080-8090", SoyRef("http") );
-	auto WebSocketChannel = CreateChannelFromInputString("ws:json:9090-9099", SoyRef("websock") );
+//	auto HttpChannel = CreateChannelFromInputString("http:8080-8090", SoyRef("http") );
+//	auto WebSocketChannel = CreateChannelFromInputString("ws:json:9090-9099", SoyRef("websock") );
 	//auto WebSocketChannel = CreateChannelFromInputString("ws:cli:9090-9099", SoyRef("websock") );
-	auto SocksChannel = CreateChannelFromInputString("cli:7070-7079", SoyRef("socks") );
+//	auto SocksChannel = CreateChannelFromInputString("cli:7070-7079", SoyRef("socks") );
 	
 	App.AddChannel( CommandLineChannel );
 	App.AddChannel( StdioChannel );
-	App.AddChannel( HttpChannel );
-	App.AddChannel( WebSocketChannel );
-	App.AddChannel( SocksChannel );
+//	App.AddChannel( HttpChannel );
+//	App.AddChannel( WebSocketChannel );
+//	App.AddChannel( SocksChannel );
 
 	//	when the commandline SENDs a command (a reply), send it to stdout
 	auto RelayFunc = [](TJobAndChannel& JobAndChannel)
@@ -197,6 +197,24 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		gStdioChannel->SendCommand( Job );
 	};
 	CommandLineChannel->mOnJobSent.AddListener( RelayFunc );
+	
+	//	connect to another app, and subscribe to frames
+	{
+		auto CaptureChannel = CreateChannelFromInputString("cli://localhost:7070", SoyRef("capture") );
+		CaptureChannel->mOnJobRecieved.AddListener( RelayFunc );
+		App.AddChannel( CaptureChannel );
+		
+		auto StartSubscription = [](TChannel& Channel)
+		{
+			TJob GetFrameJob;
+			GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
+			GetFrameJob.mParams.mCommand = "subscribenewframe";
+			GetFrameJob.mParams.AddParam("serial", "facetime" );
+			Channel.SendCommand( GetFrameJob );
+		};
+		
+		CaptureChannel->mOnConnected.AddListener( StartSubscription );
+	}
 	
 	//	run
 	App.mConsoleApp.WaitForExit();

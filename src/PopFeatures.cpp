@@ -16,6 +16,7 @@ TPopFeatures::TPopFeatures()
 	AddJobHandler("exit", TParameterTraits(), *this, &TPopFeatures::OnExit );
 	
 	AddJobHandler("newframe", TParameterTraits(), *this, &TPopFeatures::OnNewFrame );
+	AddJobHandler("re:getframe", TParameterTraits(), *this, &TPopFeatures::OnNewFrame );
 	
 	TParameterTraits GetFeatureTraits;
 	GetFeatureTraits.mAssumedKeys.PushBack("x");
@@ -115,6 +116,7 @@ void TPopFeatures::OnNewFrame(TJobAndChannel& JobAndChannel)
 	//	pull image
 	auto ImageParam = Job.mParams.GetDefaultParam();
 	SoyPixels Image;
+	std::Debug << "Getting image from " << ImageParam.GetFormat() << std::endl;
 	if ( !ImageParam.Decode( Image ) )
 	{
 		std::Debug << "Failed to decode image" << std::endl;
@@ -177,6 +179,7 @@ public:
 
 //	horrible global for lambda
 std::shared_ptr<TChannel> gStdioChannel;
+std::shared_ptr<TChannel> gCaptureChannel;
 
 
 
@@ -217,15 +220,29 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	//	connect to another app, and subscribe to frames
 	{
 		auto CaptureChannel = CreateChannelFromInputString("cli://localhost:7070", SoyRef("capture") );
+		gCaptureChannel = CaptureChannel;
 		CaptureChannel->mOnJobRecieved.AddListener( RelayFunc );
 		App.AddChannel( CaptureChannel );
+		
+		//	send commands from stdio to new channel
+		auto SendToCaptureFunc = [](TJobAndChannel& JobAndChannel)
+		{
+			TJob Job = JobAndChannel;
+			Job.mChannelMeta.mChannelRef = gStdioChannel->GetChannelRef();
+			Job.mChannelMeta.mClientRef = SoyRef();
+			gCaptureChannel->SendCommand( Job );
+		};
+		gStdioChannel->mOnJobRecieved.AddListener( SendToCaptureFunc );
 		
 		auto StartSubscription = [](TChannel& Channel)
 		{
 			TJob GetFrameJob;
 			GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
-			GetFrameJob.mParams.mCommand = "subscribenewframe";
-			GetFrameJob.mParams.AddParam("serial", "facetime" );
+			//GetFrameJob.mParams.mCommand = "subscribenewframe";
+			//GetFrameJob.mParams.AddParam("serial", "isight" );
+			GetFrameJob.mParams.mCommand = "getframe";
+			GetFrameJob.mParams.AddParam("serial", "isight" );
+			GetFrameJob.mParams.AddParam("memfile", "1" );
 			Channel.SendCommand( GetFrameJob );
 		};
 		

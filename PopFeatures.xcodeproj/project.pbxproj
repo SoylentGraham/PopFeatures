@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FB6650CD1A56FD8600DF0A12 /* SoyDebug.mm in Sources */ = {isa = PBXBuildFile; fileRef = FB6650CC1A56FD8600DF0A12 /* SoyDebug.mm */; };
+		FB6650D71A5B4C2900DF0A12 /* PopRingFeature.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */; };
 		FB8A06211A2E5A200099596C /* memheap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06201A2E5A200099596C /* memheap.cpp */; };
 		FB8A06531A2E5A7C0099596C /* SoyApp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06241A2E5A7C0099596C /* SoyApp.cpp */; };
 		FB8A06541A2E5A7C0099596C /* SoyArray.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06261A2E5A7C0099596C /* SoyArray.cpp */; };
@@ -80,6 +81,8 @@
 
 /* Begin PBXFileReference section */
 		FB6650CC1A56FD8600DF0A12 /* SoyDebug.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = SoyDebug.mm; path = src/SoyDebug.mm; sourceTree = "<group>"; };
+		FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = PopRingFeature.cpp; path = src/PopRingFeature.cpp; sourceTree = SOURCE_ROOT; };
+		FB6650D61A5B4C2900DF0A12 /* PopRingFeature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PopRingFeature.h; path = src/PopRingFeature.h; sourceTree = SOURCE_ROOT; };
 		FB8A05931A2E54730099596C /* PopFeatures */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PopFeatures; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB8A05A61A2E57700099596C /* PopApp.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = PopApp.xcconfig; path = ../NewChromantics/PopTrack/PopApp.xcconfig; sourceTree = SOURCE_ROOT; };
 		FB8A06201A2E5A200099596C /* memheap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memheap.cpp; path = ../ofxSoylent/src/memheap.cpp; sourceTree = "<group>"; };
@@ -245,6 +248,8 @@
 		FB8A05951A2E54730099596C /* src */ = {
 			isa = PBXGroup;
 			children = (
+				FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */,
+				FB6650D61A5B4C2900DF0A12 /* PopRingFeature.h */,
 				FB8A07181A2E6C3E0099596C /* PopFeatures.cpp */,
 				FB8A07191A2E6C3E0099596C /* PopFeatures.h */,
 			);
@@ -502,6 +507,7 @@
 				FB8A065F1A2E5A7C0099596C /* SoyRef.cpp in Sources */,
 				FB8A06531A2E5A7C0099596C /* SoyApp.cpp in Sources */,
 				FB8A06F81A2E6B520099596C /* TestList.cpp in Sources */,
+				FB6650D71A5B4C2900DF0A12 /* PopRingFeature.cpp in Sources */,
 				FB8A06EE1A2E6B520099596C /* Checks.cpp in Sources */,
 				FB8A06F21A2E6B520099596C /* MemoryOutStream.cpp in Sources */,
 				FB8A06EF1A2E6B520099596C /* CurrentTest.cpp in Sources */,

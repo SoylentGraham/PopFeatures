@@ -8,7 +8,7 @@
 #include <TJobRelay.h>
 #include <SoyPixels.h>
 #include <SoyString.h>
-
+#include "PopRingFeature.h"
 
 
 TPopFeatures::TPopFeatures()
@@ -45,18 +45,6 @@ void TPopFeatures::OnExit(TJobAndChannel& JobAndChannel)
 	Channel.OnJobCompleted( Reply );
 }
 
-class TFeatureContrastRing
-{
-public:
-	uint32		mBits;
-};
-//	needs soydata cast to stirng here
-
-class TFeatureParams
-{
-public:
-	float		mContrastTolerance;
-};
 
 void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 {
@@ -65,16 +53,7 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 	//	pull image
 	auto ImageParam = Job.mParams.GetParam("image");
 
-	//	find it's encoding if not specified...
-	Array<std::string> ContainerFormats;
-	ContainerFormats.PushBack("memfile/soypixels");
-	ContainerFormats.PushBack("filename/soypixels");
-	ContainerFormats.PushBack("datauri/base64/png");
-	for ( int i=0;	i<ContainerFormats.GetSize();	i++ )
-	{
-		if ( ImageParam.Cast( ContainerFormats[i] ) )
-			break;
-	}
+	/*
 	//	assume format is now set right, decode the pixels out of it
 	SoyPixels Pixels;
 	if ( !ImageParam.Decode(Pixels) )
@@ -88,19 +67,37 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 		Channel.OnJobCompleted( Reply );
 		return;
 	}
-		
-	
+	*/
 	
 	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
 	auto PixelxParam = Job.mParams.GetParam("x");
 	auto PixelyParam = Job.mParams.GetParam("y");
+	int x = PixelxParam.Decode<int>();
+	int y = PixelyParam.Decode<int>();
+	
+	if ( !Image.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "Failed to decode image param";
+		TJobReply Reply( JobAndChannel );
+		Reply.mParams.AddErrorParam( Error.str() );
+		
+		TChannel& Channel = JobAndChannel;
+		Channel.OnJobCompleted( Reply );
+		return;
+	}
 
 	//	return descriptor and stuff
-	TFeatureContrastRing Descriptor;
-	Descriptor.mBits = 0x10101010;
+	TPopRingFeatureParams Params( Job.mParams );
+	auto Feature = TPopRingFeature::GetFeature( Image, x, y, Params );
 	
 	TJobReply Reply( JobAndChannel );
-	Reply.mParams.AddDefaultParam( Descriptor );
+	
+	SoyData_Impl<TPopRingFeature> FeatureData( Feature );
+	std::shared_ptr<SoyData> FeatureEncoded( new SoyData_Stack<std::string>() );
+	static_cast<SoyData_Stack<std::string>&>(*FeatureEncoded).Encode( FeatureData );
+	
+	Reply.mParams.AddDefaultParam( FeatureEncoded );
 	Reply.mParams.AddParam( PixelxParam );
 	Reply.mParams.AddParam( PixelyParam );
 	
@@ -194,10 +191,11 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	//	create stdio channel for commandline output
 	auto StdioChannel = CreateChannelFromInputString("std:", SoyRef("stdio") );
 	gStdioChannel = StdioChannel;
-//	auto HttpChannel = CreateChannelFromInputString("http:8080-8090", SoyRef("http") );
+	auto HttpChannel = CreateChannelFromInputString("http:8080-8090", SoyRef("http") );
 //	auto WebSocketChannel = CreateChannelFromInputString("ws:json:9090-9099", SoyRef("websock") );
 	//auto WebSocketChannel = CreateChannelFromInputString("ws:cli:9090-9099", SoyRef("websock") );
 //	auto SocksChannel = CreateChannelFromInputString("cli:7070-7079", SoyRef("socks") );
+	
 	
 	App.AddChannel( CommandLineChannel );
 	App.AddChannel( StdioChannel );
@@ -218,6 +216,8 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	CommandLineChannel->mOnJobSent.AddListener( RelayFunc );
 	
 	//	connect to another app, and subscribe to frames
+	bool CreateCaptureChannel = false;
+	if ( CreateCaptureChannel )
 	{
 		auto CaptureChannel = CreateChannelFromInputString("cli://localhost:7070", SoyRef("capture") );
 		gCaptureChannel = CaptureChannel;
@@ -248,6 +248,26 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		
 		CaptureChannel->mOnConnected.AddListener( StartSubscription );
 	}
+	
+	
+	//	gr: bootup commands
+	auto Bootup = [](TChannel& Channel)
+	{
+		TJob GetFrameJob;
+		GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
+		GetFrameJob.mParams.mCommand = "getfeature";
+		GetFrameJob.mParams.AddParam("x", 10 );
+		GetFrameJob.mParams.AddParam("y", 10 );
+		GetFrameJob.mParams.AddParam("image", "/users/grahamr/Dropbox/electricusage.png", TJobFormat("text/file/png") );
+		Channel.OnJobRecieved( GetFrameJob );
+	};
+	if ( CommandLineChannel->IsConnected() )
+		Bootup( *CommandLineChannel );
+	else
+		CommandLineChannel->mOnConnected.AddListener( Bootup );
+	
+
+	
 	
 	//	run
 	App.mConsoleApp.WaitForExit();

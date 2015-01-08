@@ -88,8 +88,10 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 	}
 
 	//	return descriptor and stuff
+	std::stringstream Error;
 	TPopRingFeatureParams Params( Job.mParams );
-	auto Feature = TPopRingFeature::GetFeature( Image, x, y, Params );
+	TPopRingFeature Feature;
+	TPopRingFeature::GetFeature( Feature, Image, x, y, Params, Error );
 	
 	TJobReply Reply( JobAndChannel );
 	

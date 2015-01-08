@@ -9,6 +9,7 @@
 #include <SoyPixels.h>
 #include <SoyString.h>
 #include "PopRingFeature.h"
+#include <SortArray.h>
 
 
 TPopFeatures::TPopFeatures()
@@ -23,6 +24,11 @@ TPopFeatures::TPopFeatures()
 	GetFeatureTraits.mAssumedKeys.PushBack("y");
 	GetFeatureTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("getfeature", GetFeatureTraits, *this, &TPopFeatures::OnGetFeature );
+
+	TParameterTraits FindFeatureTraits;
+	FindFeatureTraits.mAssumedKeys.PushBack("feature");
+	FindFeatureTraits.mRequiredKeys.PushBack("image");
+	AddJobHandler("findfeature", FindFeatureTraits, *this, &TPopFeatures::OnFindFeature );
 }
 
 void TPopFeatures::AddChannel(std::shared_ptr<TChannel> Channel)
@@ -69,13 +75,8 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 	}
 	*/
 	
-	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
-	auto PixelxParam = Job.mParams.GetParam("x");
-	auto PixelyParam = Job.mParams.GetParam("y");
-	int x = PixelxParam.Decode<int>();
-	int y = PixelyParam.Decode<int>();
-	
-	if ( !Image.IsValid() )
+	SoyPixels Image;
+	if ( !Job.mParams.GetParamAs("image",Image) )
 	{
 		std::stringstream Error;
 		Error << "Failed to decode image param";
@@ -86,12 +87,19 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 		Channel.OnJobCompleted( Reply );
 		return;
 	}
+	
+	auto PixelxParam = Job.mParams.GetParam("x");
+	auto PixelyParam = Job.mParams.GetParam("y");
+	int x = PixelxParam.Decode<int>();
+	int y = PixelyParam.Decode<int>();
+	
+
 
 	//	return descriptor and stuff
 	std::stringstream Error;
 	TPopRingFeatureParams Params( Job.mParams );
 	TPopRingFeature Feature;
-	TPopRingFeature::GetFeature( Feature, Image, x, y, Params, Error );
+	TFeatureExtractor::GetFeature( Feature, Image, x, y, Params, Error );
 	
 	TJobReply Reply( JobAndChannel );
 	
@@ -106,6 +114,58 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 	TChannel& Channel = JobAndChannel;
 	Channel.OnJobCompleted( Reply );
 }
+
+
+
+void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
+{
+	auto& Job = JobAndChannel.GetJob();
+	
+	//	pull image
+	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
+	auto Stepx = Job.mParams.GetParamAs<int>("stepx");
+	auto Stepy = Job.mParams.GetParamAs<int>("stepy");
+	auto Feature = Job.mParams.GetParamAs<TPopRingFeature>("Feature");
+	
+	if ( !Image.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "Failed to decode image param";
+		TJobReply Reply( JobAndChannel );
+		Reply.mParams.AddErrorParam( Error.str() );
+		
+		TChannel& Channel = JobAndChannel;
+		Channel.OnJobCompleted( Reply );
+		return;
+	}
+
+	//	run a search
+	TPopRingFeatureParams Params( Job.mParams );
+	Array<TFeatureMatch> FeatureMatches;
+	std::stringstream Error;
+	TFeatureExtractor::FindFeatureMatches( GetArrayBridge(FeatureMatches), Image, Feature, Params, Error );
+	
+	TJobReply Reply( JobAndChannel );
+	
+	std::stringstream Output;
+	Output << "Found " << FeatureMatches.GetSize() << " features:" << std::endl;
+	auto SortedMatches = GetSortArray( FeatureMatches, TSortPolicy_Descending<TFeatureMatch>() );
+	SortedMatches.Sort();
+	for ( int i=0;	i<FeatureMatches.GetSize();	i++ )
+	{
+		auto& Match = FeatureMatches[i];
+		Output << i << ": " << Match.mScore << " @ " << Match.mCoord.x << "," << Match.mCoord.y << std::endl;
+	}
+	
+	Reply.mParams.AddDefaultParam( Output.str() );
+	
+	if ( !Error.str().empty() )
+		Reply.mParams.AddErrorParam( Error.str() );
+	
+	TChannel& Channel = JobAndChannel;
+	Channel.OnJobCompleted( Reply );
+}
+
 
 
 void TPopFeatures::OnNewFrame(TJobAndChannel& JobAndChannel)
@@ -201,7 +261,7 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	
 	App.AddChannel( CommandLineChannel );
 	App.AddChannel( StdioChannel );
-//	App.AddChannel( HttpChannel );
+	App.AddChannel( HttpChannel );
 //	App.AddChannel( WebSocketChannel );
 //	App.AddChannel( SocksChannel );
 
@@ -251,22 +311,36 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		CaptureChannel->mOnConnected.AddListener( StartSubscription );
 	}
 	
+	std::string TestFilename = "/users/grahamr/Desktop/ringo2.png";
 	
 	//	gr: bootup commands
-	auto Bootup = [](TChannel& Channel)
+	auto BootupGet = [TestFilename](TChannel& Channel)
 	{
 		TJob GetFrameJob;
 		GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
 		GetFrameJob.mParams.mCommand = "getfeature";
-		GetFrameJob.mParams.AddParam("x", 10 );
-		GetFrameJob.mParams.AddParam("y", 10 );
-		GetFrameJob.mParams.AddParam("image", "/users/grahamr/Dropbox/electricusage.png", TJobFormat("text/file/png") );
+		GetFrameJob.mParams.AddParam("x", 120 );
+		GetFrameJob.mParams.AddParam("y", 120 );
+		GetFrameJob.mParams.AddParam("image", TestFilename, TJobFormat("text/file/png") );
 		Channel.OnJobRecieved( GetFrameJob );
 	};
+	
+	auto BootupMatch = [TestFilename](TChannel& Channel)
+	{
+		TJob GetFrameJob;
+		GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
+		GetFrameJob.mParams.mCommand = "findfeature";
+		GetFrameJob.mParams.AddParam("feature", "00000100000011111001100000000000" );
+		GetFrameJob.mParams.AddParam("image", TestFilename, TJobFormat("text/file/png") );
+		Channel.OnJobRecieved( GetFrameJob );
+	};
+	
+	//	auto BootupFunc = BootupMatch;
+	auto BootupFunc = BootupGet;
 	if ( CommandLineChannel->IsConnected() )
-		Bootup( *CommandLineChannel );
+		BootupFunc( *CommandLineChannel );
 	else
-		CommandLineChannel->mOnConnected.AddListener( Bootup );
+		CommandLineChannel->mOnConnected.AddListener( BootupFunc );
 	
 
 	

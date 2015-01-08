@@ -4,7 +4,9 @@
 
 
 TPopRingFeatureParams::TPopRingFeatureParams() :
-	mContrastTolerance	( 0.5f )
+	mMinScore		( 0.7f ),
+	mMatchStepX		( 10 ),
+	mMatchStepY		( 10 )
 {
 	
 }
@@ -12,6 +14,27 @@ TPopRingFeatureParams::TPopRingFeatureParams() :
 TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& params) :
 	TPopRingFeatureParams	()
 {
+}
+
+
+float TPopRingFeature::GetMatchScore(const TPopRingFeature& Match,const TPopRingFeatureParams& Params) const
+{
+	auto& That = Match;
+	//	how many bits match?
+	int BitCount = sizeof(mBrighters) * 8;
+	
+	int MatchCount = 0;
+	for ( int b=0;	b<BitCount;	b++ )
+	{
+		bool ThisBit = (this->mBrighters & (1<<b)) != 0;
+		bool ThatBit = (That.mBrighters & (1<<b)) != 0;
+	
+		if ( ThisBit == ThatBit )
+			MatchCount++;
+	}
+	
+	float Score = MatchCount / static_cast<float>( BitCount );
+	return Score;
 }
 
 
@@ -70,32 +93,6 @@ public:
 	int						mBaseY;
 };
 
-template<typename TYPE>
-class vec2x
-{
-public:
-	vec2x(TYPE _x,TYPE _y) :
-	x	( _x ),
-	y	( _y )
-	{
-	}
-	vec2x() :
-	x	( 0 ),
-	y	( 0 )
-	{
-	}
-	
-	TYPE	LengthSq() const	{	return (x*x)+(y*y);	}
-	TYPE	Length() const		{	return sqrtf( LengthSq() );	}
-	
-	vec2x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
-	vec2x&	operator*=(const vec2x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
-	
-public:
-	TYPE	x;
-	TYPE	y;
-};
-
 
 void AddBoxRing(ArrayBridge<vec2x<int>>& Coords,int x,int y)
 {
@@ -134,7 +131,7 @@ void GetBoxRing(ArrayBridge<vec2x<int>>&& Coords,int Radius,int Step)
 }
 
 
-bool TPopRingFeature::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& Pixels,int x,int y,const TPopRingFeatureParams& Params,std::stringstream& Error)
+bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& Pixels,int x,int y,const TPopRingFeatureParams& Params,std::stringstream& Error)
 {
 	TSampleWrapper Sampler( Pixels, Params, x, y );
 
@@ -145,7 +142,7 @@ bool TPopRingFeature::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& P
 	TBitWriter BitWriter( GetArrayBridge(Data) );
 	
 	//	first box ring
-	int Radius = 5;
+	int Radius = 7;
 	int Step = 2;
 	Array<vec2x<int>> SampleOffsets;
 	GetBoxRing( GetArrayBridge(SampleOffsets), Radius, Step );
@@ -171,6 +168,35 @@ bool TPopRingFeature::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& P
 	{
 		Error << "Error reading back bits";
 		return false;
+	}
+	
+	return true;
+}
+
+bool TFeatureExtractor::FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,const SoyPixelsImpl& Pixels,const TPopRingFeature& Feature,const TPopRingFeatureParams& Params,std::stringstream& Error)
+{
+	//	step through the image
+	for ( int x=0;	x<Pixels.GetWidth();	x+=Params.mMatchStepX )
+	{
+		for ( int y=0;	y<Pixels.GetHeight();	y+=Params.mMatchStepY )
+		{
+			//	get feature here
+			TPopRingFeature TestFeature;
+			if ( !GetFeature( TestFeature, Pixels, x, y, Params, Error ) )
+				return false;
+				
+			//	get score
+			float Score = Feature.GetMatchScore( TestFeature, Params );
+			if ( Score < Params.mMinScore )
+				continue;
+			
+			auto& Match = Matches.PushBack();
+			Match.mCoord.x = x;
+			Match.mCoord.y = y;
+			Match.mScore = Score;
+			Match.mFeature = TestFeature;
+		
+		}
 	}
 	
 	return true;

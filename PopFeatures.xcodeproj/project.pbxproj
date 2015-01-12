@@ -80,6 +80,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FB5702CB1A5FDC9700449FF3 /* stb_image.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stb_image.h; path = src/stb/stb_image.h; sourceTree = "<group>"; };
 		FB6650CC1A56FD8600DF0A12 /* SoyDebug.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = SoyDebug.mm; path = src/SoyDebug.mm; sourceTree = "<group>"; };
 		FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = PopRingFeature.cpp; path = src/PopRingFeature.cpp; sourceTree = SOURCE_ROOT; };
 		FB6650D61A5B4C2900DF0A12 /* PopRingFeature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PopRingFeature.h; path = src/PopRingFeature.h; sourceTree = SOURCE_ROOT; };
@@ -221,6 +222,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FB5702CA1A5FDC8800449FF3 /* stb */ = {
+			isa = PBXGroup;
+			children = (
+				FB5702CB1A5FDC9700449FF3 /* stb_image.h */,
+			);
+			name = stb;
+			sourceTree = "<group>";
+		};
 		FB8A058A1A2E54730099596C = {
 			isa = PBXGroup;
 			children = (
@@ -260,6 +269,7 @@
 		FB8A06221A2E5A280099596C /* soylib */ = {
 			isa = PBXGroup;
 			children = (
+				FB5702CA1A5FDC8800449FF3 /* stb */,
 				FBC3A0DF1A308648009DA49E /* SoyScope.cpp */,
 				FBC3A0E01A308648009DA49E /* SoyScope.h */,
 				FB8A07141A2E6B990099596C /* sha1 */,

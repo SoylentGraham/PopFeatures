@@ -273,17 +273,18 @@ function EncodeFloatRGB(f)
 }
 
 
-function ImageToDataUri($ImageElement)
+function ImageToDataUri($ImageElement,$Width,$Height)
 {
+	$Width = CheckDefaultParam( $Width, $ImageElement.width );
+	$Height = CheckDefaultParam( $Height, $ImageElement.height );
+	
 	//	make a canvas
-	var w = 256;
-	var h = 256;
 	var canvas = document.createElement('canvas');
-	canvas.width = w;
-	canvas.height = h;
+	canvas.width = $Width;
+	canvas.height = $Height;
 	var context = canvas.getContext('2d');
-	context.drawImage( $ImageElement, 0, 0, w, h);
-	context.setTransform(-1,0,0,1,w,0);
+	context.drawImage( $ImageElement, 0, 0, $Width, $Height );
+	context.setTransform(-1,0,0,1,$Width,0);
 	var $datauri = canvas.toDataURL("image/png;base64");
 /*
 	var imageData = context.getImageData(0, 0, w,h);

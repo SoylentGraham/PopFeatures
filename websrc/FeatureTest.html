@@ -13,34 +13,15 @@
 	</head>
 <style>
 	
-	#SceneVersion
-	{
-		background:	#ffc;
-		padding:	20px;
-	}
-
-	#Devices
-	{
-		background:	#cfc;
-		padding:	20px;
-	}
-
-	#Sessions
-	{
-		background:	#ccf;
-		padding:	20px;
-	}
-
-	#Medias
+	#Features
 	{
 		background:	#fcf;
 		padding:	20px;
 	}
 
-	#Sockets
+	#Features span
 	{
-		background:	#cff;
-		padding:	20px;
+		margin:	4px;
 	}
 
 	#Errors
@@ -67,11 +48,11 @@ Div#Image
 </style>
 <body>
 	
-	<div id="Image"><img src="http://localhost:8080/file/PartyTime.png" crossOrigin="anonymous" id="FeaturesImage" /></div>
+	<div id="Image"><img src="http://localhost:8080/file/PartyTime200.png" crossOrigin="anonymous" id="FeaturesImage" /></div>
 	
 	<div>
-		<div>Medias</div>
-		<div id="Medias"></div>
+		<div>Features</div>
+		<div id="Features"></div>
 	</div>
 	
 	<div>
@@ -94,35 +75,38 @@ function PrettifyString($String)
 	return $String;
 }
 
-function UpdateDevices($Devices)
+function OnReGetFeature($Json)
 {
-	var $Element = GetElement('Devices');
+	var $ParentElement = GetElement('Features');
 	
-	//	gr: do comparison before changing dom to allow easy copy & paste when text doesnt change
-	var $Text = '';
-
-	if ( $Devices.length == 0 )
+	//	create a new div with various info/buttons
+	var $FeatureElement = document.createElement('div');
+	$FeatureElement.className = 'Feature';
+	$ParentElement.appendChild($FeatureElement);
+	
+	var $FeatureValueElement = document.createElement('span');
+	$FeatureValueElement.className = 'Value';
+	$FeatureElement.appendChild($FeatureValueElement);
+	$FeatureValueElement.innerText = $Json.default;
+	
+	var $FeatureXElement = document.createElement('span');
+	$FeatureXElement.className = 'x';
+	$FeatureElement.appendChild($FeatureXElement);
+	$FeatureXElement.innerText = $Json.x;
+	
+	var $FeatureYElement = document.createElement('span');
+	$FeatureYElement.className = 'y';
+	$FeatureElement.appendChild($FeatureYElement);
+	$FeatureYElement.innerText = $Json.y;
+	
+	var $SendJobFunction = function($Job)
 	{
-		$Text = "None";
-	}
-	else
-	{
-		forEach( $Devices, function($Device)
-		{
-			$Text += "[" + $Device.uid + "]";
-			$Text += " name:" + PrettifyString($Device.name);
-			$Text += " nfc:" + PrettifyString($Device.nfc);
-			$Text += " type:" + $Device.type;
-			$Text += " session:" + PrettifyString($Device.session);
-			$Text += " audiomode:" + $Device.audiomode;
-			$Text += " volume:" + $Device.volume;
-			$Text += '\n';
-		}
-		);
+		$Job.feature = $Json.default;
+		SendJobWithImage( $Job );
 	}
 	
-	if ( $Element.innerText != $Text )
-		$Element.innerText = $Text;
+	var $Inputs = MakeFindFeatureButton( $FeatureElement, $SendJobFunction );
+	$Inputs[1].value = $Json.default;
 }
 
 function UpdateSessions($Sessions)
@@ -242,24 +226,11 @@ function OnWebsocketMessage($SoyWebSocket,$Message)
 	{
 		console.log($Json);
 
-		if ( $Json.default && $Json.default.Devices )
-			UpdateDevices( $Json.default.Devices );
-
-		if ( $Json.default && $Json.default.Sessions )
-			UpdateSessions( $Json.default.Sessions );
-
-		if ( $Json.default && $Json.default.Medias )
-			UpdateMedias( $Json.default.Medias );
-
-		if ( $Json.default && $Json.default.Sockets )
-			UpdateSockets( $Json.default.Sockets );
-
-		if ( $Json.default && $Json.default.version )
-			UpdateVersion( $Json.default.version );
-
 		if ( $Json.error )
 			OnError( $Json.error );
 
+		if ( $Json.mCommand == "re:getfeature" )
+			OnReGetFeature( $Json );
 	}
 	else
 	{
@@ -549,6 +520,28 @@ function MakeSetDeviceSessionButton($ParentElement)
 	$Button.onclick = $OnClick;
 	
 	return $Div;
+}
+
+
+function MakeFindFeatureButton($ParentElement,$SendJobFunc)
+{
+	$SendJobFunc = CheckDefaultParam($SendJobFunc,SendJob);
+	
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputFeature = MakeInput( $Div, "feature" );
+	var $Button = MakeButton( $Div, "Find Feature" );
+	
+	var $OnClick = function(e)
+	{
+		//	var This = e.toElement;
+		var $Job = new SoyJob('findfeature');
+		$Job.Feature = $InputFeature.value;
+		$SendJobFunc($Job);
+	};
+	$Button.onclick = $OnClick;
+	
+	return new Array( $Button, $InputFeature );
 }
 
 

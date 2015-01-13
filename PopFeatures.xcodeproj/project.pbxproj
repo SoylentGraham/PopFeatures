@@ -10,6 +10,7 @@
 		FB6650CD1A56FD8600DF0A12 /* SoyDebug.mm in Sources */ = {isa = PBXBuildFile; fileRef = FB6650CC1A56FD8600DF0A12 /* SoyDebug.mm */; };
 		FB6650D71A5B4C2900DF0A12 /* PopRingFeature.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */; };
 		FB88ACF91A656920005FB2A2 /* partytime.png in CopyFiles */ = {isa = PBXBuildFile; fileRef = FB88ACF81A6568CD005FB2A2 /* partytime.png */; };
+		FB88ACFB1A65728E005FB2A2 /* partytime200.png in CopyFiles */ = {isa = PBXBuildFile; fileRef = FB88ACFA1A65724D005FB2A2 /* partytime200.png */; };
 		FB8A06211A2E5A200099596C /* memheap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06201A2E5A200099596C /* memheap.cpp */; };
 		FB8A06531A2E5A7C0099596C /* SoyApp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06241A2E5A7C0099596C /* SoyApp.cpp */; };
 		FB8A06541A2E5A7C0099596C /* SoyArray.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06261A2E5A7C0099596C /* SoyArray.cpp */; };
@@ -75,6 +76,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				FB88ACFB1A65728E005FB2A2 /* partytime200.png in CopyFiles */,
 				FB88ACF91A656920005FB2A2 /* partytime.png in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -87,6 +89,7 @@
 		FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = PopRingFeature.cpp; path = src/PopRingFeature.cpp; sourceTree = SOURCE_ROOT; };
 		FB6650D61A5B4C2900DF0A12 /* PopRingFeature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PopRingFeature.h; path = src/PopRingFeature.h; sourceTree = SOURCE_ROOT; };
 		FB88ACF81A6568CD005FB2A2 /* partytime.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = partytime.png; sourceTree = "<group>"; };
+		FB88ACFA1A65724D005FB2A2 /* partytime200.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = partytime200.png; sourceTree = "<group>"; };
 		FB8A05931A2E54730099596C /* PopFeatures */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PopFeatures; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB8A05A61A2E57700099596C /* PopApp.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = PopApp.xcconfig; path = ../NewChromantics/PopTrack/PopApp.xcconfig; sourceTree = SOURCE_ROOT; };
 		FB8A06201A2E5A200099596C /* memheap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memheap.cpp; path = ../ofxSoylent/src/memheap.cpp; sourceTree = "<group>"; };
@@ -236,6 +239,7 @@
 		FB88ACF31A656815005FB2A2 /* websrc */ = {
 			isa = PBXGroup;
 			children = (
+				FB88ACFA1A65724D005FB2A2 /* partytime200.png */,
 				FB88ACF81A6568CD005FB2A2 /* partytime.png */,
 			);
 			path = websrc;

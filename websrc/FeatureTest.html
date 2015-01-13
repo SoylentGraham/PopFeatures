@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>PopFeatures</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		
+		<script src="SoyWebsocket-1.0.js"></script>
+		<script src="SoyJob-1.0.js"></script>
+		<script src="soyjs/soy.js"></script>
+		<script src="soyjs/SoyRect.js"></script>
+		<script src="soyjs/SoyAsset.js"></script>
+		
+	</head>
+<style>
+	
+	#SceneVersion
+	{
+		background:	#ffc;
+		padding:	20px;
+	}
+
+	#Devices
+	{
+		background:	#cfc;
+		padding:	20px;
+	}
+
+	#Sessions
+	{
+		background:	#ccf;
+		padding:	20px;
+	}
+
+	#Medias
+	{
+		background:	#fcf;
+		padding:	20px;
+	}
+
+	#Sockets
+	{
+		background:	#cff;
+		padding:	20px;
+	}
+
+	#Errors
+	{
+		background:	#fcc;
+		padding:	20px;
+	}
+
+	#Commands
+	{
+		background:	#ccc;
+		padding:	20px;
+	}
+
+	.SoyWebSocket
+	{
+		float:right;
+	}
+
+Div#Image
+{
+	padding-left: 300px;
+}
+</style>
+<body>
+	
+	<div id="Image"><img src="partytime.png" id="FeaturesImage" /></div>
+	
+	<div>
+		<div>Medias</div>
+		<div id="Medias"></div>
+	</div>
+	
+	<div>
+		<div>Commands</div>
+		<div id="Commands">
+	</div>
+	
+	<div>
+		<div>Errors <a href="#" onclick="ClearErrors();return false;">(clear)</a></div>
+		<div id="Errors"></div>
+	</div>
+	
+
+<script language="javascript">
+
+function PrettifyString($String)
+{
+	if ( !$String || $String== "" )
+		return "[none]";
+	return $String;
+}
+
+function UpdateDevices($Devices)
+{
+	var $Element = GetElement('Devices');
+	
+	//	gr: do comparison before changing dom to allow easy copy & paste when text doesnt change
+	var $Text = '';
+
+	if ( $Devices.length == 0 )
+	{
+		$Text = "None";
+	}
+	else
+	{
+		forEach( $Devices, function($Device)
+		{
+			$Text += "[" + $Device.uid + "]";
+			$Text += " name:" + PrettifyString($Device.name);
+			$Text += " nfc:" + PrettifyString($Device.nfc);
+			$Text += " type:" + $Device.type;
+			$Text += " session:" + PrettifyString($Device.session);
+			$Text += " audiomode:" + $Device.audiomode;
+			$Text += " volume:" + $Device.volume;
+			$Text += '\n';
+		}
+		);
+	}
+	
+	if ( $Element.innerText != $Text )
+		$Element.innerText = $Text;
+}
+
+function UpdateSessions($Sessions)
+{
+	var $Element = GetElement('Sessions');
+	
+	var $Text = '';
+	if ( $Sessions.length == 0 )
+	{
+		$Text = "None";
+	}
+	else
+	{
+		forEach( $Sessions, function($Session)
+		{
+			$Text += "uid:" + $Session.uid;
+			$Text += " state:" + $Session.state;
+				
+				
+			$Text += " playlist: {";
+			forEach( $Session.playlist, function($PlaylistEntry)
+					{
+					$Text += " " + $PlaylistEntry.uid + "(" + $PlaylistEntry.time + "), ";
+					}
+					);
+			$Text += "}";
+
+			
+			$Text += '\n';
+		}
+		);
+	}
+	
+	if ( $Element.innerText != $Text )
+		$Element.innerText = $Text;
+}
+
+function UpdateMedias($Medias)
+{
+	var $Element = GetElement('Medias');
+	
+	var $Text = '';
+	if ( $Medias.length == 0 )
+	{
+		$Text = "None";
+	}
+	else
+	{
+		forEach( $Medias, function($Media)
+				{
+				$Text += "uid:" + $Media.uid;
+				$Text += " filename:" + $Media.filename;
+				
+				$Text += '\n';
+				}
+				);
+	}
+	
+	
+	if ( $Element.innerText != $Text )
+		$Element.innerText = $Text;
+}
+
+
+function UpdateSockets($Sockets)
+{
+	var $Element = GetElement('Sockets');
+	
+	var $Text = '';
+	if ( $Sockets.length == 0 )
+	{
+		$Text = "None";
+	}
+	else
+	{
+		forEach( $Sockets, function($Socket)
+				{
+				$Text += $Socket;
+				$Text += '\n';
+				}
+				);
+	}
+	
+	
+	if ( $Element.innerText != $Text )
+		$Element.innerText = $Text;
+}
+
+
+function UpdateVersion($Version)
+{
+	var $Element = GetElement('SceneVersion');
+	
+	if ( $Element.innerText != $Version )
+		$Element.innerText = $Version;
+}
+
+
+
+function ClearErrors()
+{
+	var $Element = GetElement('Errors');
+	$Element.innerText = "";
+}
+
+function OnError($Error)
+{
+	var $Element = GetElement('Errors');
+	$Element.innerText += $Error + "\n";
+}
+
+function OnWebsocketMessage($SoyWebSocket,$Message)
+{
+
+	var $Json = ParseJson($Message);
+	if ( $Json )
+	{
+		console.log($Json);
+
+		if ( $Json.default && $Json.default.Devices )
+			UpdateDevices( $Json.default.Devices );
+
+		if ( $Json.default && $Json.default.Sessions )
+			UpdateSessions( $Json.default.Sessions );
+
+		if ( $Json.default && $Json.default.Medias )
+			UpdateMedias( $Json.default.Medias );
+
+		if ( $Json.default && $Json.default.Sockets )
+			UpdateSockets( $Json.default.Sockets );
+
+		if ( $Json.default && $Json.default.version )
+			UpdateVersion( $Json.default.version );
+
+		if ( $Json.error )
+			OnError( $Json.error );
+
+	}
+	else
+	{
+		OnError( $Message );
+	}
+ 
+}
+
+
+
+function SendJob($Job,$ShowError)
+{
+	var $Sent = false;
+	$ShowError = CheckDefaultParam( $ShowError, true );
+	
+	if ( $Socket1.IsConnected() )
+	{
+		$Sent |= $Socket1.SendMessage( $Job.toString() );
+	}
+	
+	if ( $Socket2.IsConnected() )
+	{
+		$Sent |= $Socket2.SendMessage( $Job.toString() );
+	}
+	
+	if ( !$Sent && $ShowError )
+	{
+		OnError("Command " + $Job.mCommand + " not sent (not connected)");
+	}
+}
+
+
+
+function ReconnectLoop()
+{
+	if ( !$Socket1.IsConnected() && !$Socket2.IsConnected() )
+		$Socket1.Connect();
+	if ( !$Socket1.IsConnected() && !$Socket2.IsConnected() )
+		$Socket2.Connect();
+	
+	setTimeout( ReconnectLoop, 500 );
+}
+
+//	raw cli commands
+function OnClickedSendData($Socket,$String)
+{
+	$Socket.SendMessage( $String + '\n' );
+}
+
+function OnClickedSendJobData($Socket,$String)
+{
+	//	job name is first part of the string
+	var $SplitString = $String.split(' ');
+	var $JobName = $SplitString[0];
+	$SplitString.splice(0,1);
+	$String = $SplitString.join(' ');
+	
+	
+	var Job = new SoyJob($JobName);
+//	Job.frame = $Input;
+//	Job.format = "file/png";
+//	Job.outformat = "json/TFeatureSurfs";
+	Job.default = $String;
+	$Socket.SendMessage( Job.toString() );
+
+}
+
+function OnClickedSendRawJobData($Socket,$String)
+{
+	var $JobName = 'rawcli';
+	var Job = new SoyJob($JobName);
+	Job.default = $String + '\n';
+	$Socket.SendMessage( Job.toString() );
+	
+}
+
+
+
+function MakeInput($ParentElement,$InitialValue)
+{
+	var $Input = document.createElement('input');
+	$Input.value = $InitialValue;
+
+	$ParentElement.appendChild($Input);
+
+	return $Input;
+}
+
+function MakeButton($ParentElement,$Label)
+{
+	var $Input = document.createElement('button');
+	$Input.innerText = $Label;
+	
+	$ParentElement.appendChild($Input);
+	
+	return $Input;
+	
+}
+
+function MakeSendRawButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputRaw = MakeInput( $Div, "register mynfcid speaker");
+	var $Button = MakeButton( $Div, "Send Raw Command" );
+	$Button.mInput = $InputRaw;
+
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('rawcli');
+		$Job.default = $InputRaw.value + "\n";
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeRegisterButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputNfc = MakeInput( $Div, "my_nfc");
+	var $InputType = MakeInput( $Div, "speaker");
+	var $Button = MakeButton( $Div, "Register device" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('register');
+		$Job.nfc = $InputNfc.value;
+		$Job.type = $InputType.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+
+function MakeGetSceneButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $Button = MakeButton( $Div, "Refresh Scene" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('getscene');
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeLinkButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputDeviceA = MakeInput( $Div, "my_nfc_a" );
+	var $InputDeviceB = MakeInput( $Div, "my_nfc_b" );
+	var $Button = MakeButton( $Div, "Link devices" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('link');
+		$Job.nfca = $InputDeviceA.value;
+		$Job.nfcb = $InputDeviceB.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeUnlinkButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputDevice = MakeInput( $Div, "my_nfc" );
+	var $Button = MakeButton( $Div, "Unlink device" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('unlink');
+		$Job.nfc = $InputDevice.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeSessionPlayButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputDevice = MakeInput( $Div, "my_nfc" );
+	var $InputMediaUid = MakeInput( $Div, "m1000" );
+	var $Button = MakeButton( $Div, "Play" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('sessionplay');
+		$Job.nfc = $InputDevice.value;
+		$Job.media = $InputMediaUid.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeSessionPauseButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputDevice = MakeInput( $Div, "my_nfc" );
+	var $InputMediaUid = MakeInput( $Div, "m1000" );
+	var $Button = MakeButton( $Div, "Pause" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('sessionpause');
+		$Job.nfc = $InputDevice.value;
+		$Job.media = $InputMediaUid.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeRegisterMediaButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputFilename = MakeInput( $Div, "filename.mp3" );
+	var $Button = MakeButton( $Div, "Register media" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('registermedia');
+		$Job.filename = $InputFilename.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+function MakeSetDeviceNameButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputNfc = MakeInput( $Div, "my_nfc" );
+	var $InputName = MakeInput( $Div, "nice name" );
+	var $Button = MakeButton( $Div, "Set device name" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('setdevicename');
+		$Job.nfc = $InputNfc.value;
+		$Job.name = $InputName.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+}
+
+
+function MakeSetDeviceSessionButton($ParentElement)
+{
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $InputUid = MakeInput( $Div, "device_uid" );
+	var $InputSession = MakeInput( $Div, "session_uid" );
+	var $Button = MakeButton( $Div, "Set device session" );
+	
+	var $OnClick = function(e)
+	{
+		var This = e.toElement;
+		var $Job = new SoyJob('setdevicesession');
+		$Job.uid = $InputUid.value;
+		$Job.session = $InputSession.value;
+		SendJob($Job);
+	};
+	$Button.onclick = $OnClick;
+	
+	return $Div;
+}
+
+
+function MakeGetFeatureButton($ParentElement,$SendJobFunc)
+{
+	$SendJobFunc = CheckDefaultParam($SendJobFunc,SendJob);
+	
+	var $Div = document.createElement('div');
+	$ParentElement.appendChild($Div);
+	var $Inputx = MakeInput( $Div, "x" );
+	var $Inputy = MakeInput( $Div, "y" );
+	var $Button = MakeButton( $Div, "Get Feature" );
+	
+	var $OnClick = function(e)
+	{
+	//	var This = e.toElement;
+		var $Job = new SoyJob('getfeature');
+		$Job.x = $Inputx.value;
+		$Job.y = $Inputy.value;
+		$SendJobFunc($Job);
+	};
+	$Button.onclick = $OnClick;
+	
+	return new Array( $Button, $Inputx, $Inputy );
+}
+
+
+//MakeCmdButton('Send Raw Data','',OnClickedSendRawJobData);
+
+function MakeCmdButton($Socket,$Label,$InitialValue,$Function)
+{
+	//	filename
+	$Socket.mDiv.appendChild( document.createElement("br") );
+/*
+ var FindFeaturesLabel = document.createElement("label");
+	FindFeaturesLabel.innerText = "Label";
+	$Socket.mDiv.appendChild( FindFeaturesLabel );
+*/
+	var FindFeaturesInput = document.createElement("input");
+	FindFeaturesInput.value = $InitialValue;
+	$Socket.mDiv.appendChild( FindFeaturesInput );
+	
+	$Socket.mDiv.appendChild( document.createElement("br") );
+	var GetFeaturesButton = document.createElement("button");
+	GetFeaturesButton.innerText = $Label;
+	GetFeaturesButton.mSocket = $Socket;
+	GetFeaturesButton.mInput = FindFeaturesInput;
+	GetFeaturesButton.mFunction = $Function;
+	GetFeaturesButton.onclick = function(e) {	var This = e.toElement;	This.mFunction( This.mSocket, This.mInput.value );	};
+	$Socket.mDiv.appendChild( GetFeaturesButton );
+}
+
+
+
+//	main()
+
+
+var $Socket1 = new SoyWebSocket('Hub91',9090);
+var $Socket2 = new SoyWebSocket('Hub90',9091);
+$Socket1.mOnMessage = OnWebsocketMessage;
+$Socket2.mOnMessage = OnWebsocketMessage;
+//	silence connection retries
+$Socket1.mOnDisconnected = function(){};
+$Socket2.mOnDisconnected = function(){};
+$Socket1.mOnConnecting = function(){};
+$Socket2.mOnConnecting = function(){};
+$Socket1.mOnConnected = function() {
+	//var $Job = new SoyJob('getscene');
+	//SendJob($Job,false);
+};
+$Socket2.mOnConnected = $Socket1.mOnConnected;
+
+
+function SendJobWithImage($Job)
+{
+	$Job.image = ImageToDataUri( GetElement('FeaturesImage') );
+	console.log($Job.image);
+	$Job.image_format = "datauri/base64/png";
+	SendJob($Job);
+}
+
+
+var $CommandsElement = GetElement('Commands');
+MakeSendRawButton($CommandsElement);
+
+var $GetFeatureInputs = MakeGetFeatureButton( $CommandsElement, SendJobWithImage );
+
+//	when we click on our image, set the X&Y on the get feature input
+var $OnFeaturesImageClick = function(e)
+{
+	var $Clickx = e.offsetX;
+	var $Clicky = e.offsetY;
+	console.log(e);
+
+	var $Inputx = $GetFeatureInputs[1];
+	var $Inputy = $GetFeatureInputs[2];
+	$Inputx.value = $Clickx;
+	$Inputy.value = $Clicky;
+	
+	var $Button = $GetFeatureInputs[0];
+	$Button.onclick();
+};
+var $FeaturesImage = GetElement('FeaturesImage');
+$FeaturesImage.onclick = $OnFeaturesImageClick;
+
+
+ReconnectLoop();
+
+
+
+</script>
+		
+		
+	</body>

@@ -251,18 +251,17 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	auto CommandLineChannel = std::shared_ptr<TChan<TChannelLiteral,TProtocolCli>>( new TChan<TChannelLiteral,TProtocolCli>( SoyRef("cmdline") ) );
 	
 	//	create stdio channel for commandline output
-	auto StdioChannel = CreateChannelFromInputString("std:", SoyRef("stdio") );
-	gStdioChannel = StdioChannel;
+	gStdioChannel = CreateChannelFromInputString("std:", SoyRef("stdio") );
 	auto HttpChannel = CreateChannelFromInputString("http:8080-8090", SoyRef("http") );
-//	auto WebSocketChannel = CreateChannelFromInputString("ws:json:9090-9099", SoyRef("websock") );
-	//auto WebSocketChannel = CreateChannelFromInputString("ws:cli:9090-9099", SoyRef("websock") );
+	auto WebSocketChannel = CreateChannelFromInputString("ws:json:9090-9099", SoyRef("websock") );
+//	auto WebSocketChannel = CreateChannelFromInputString("ws:cli:9090-9099", SoyRef("websock") );
 //	auto SocksChannel = CreateChannelFromInputString("cli:7070-7079", SoyRef("socks") );
 	
 	
 	App.AddChannel( CommandLineChannel );
-	App.AddChannel( StdioChannel );
+	App.AddChannel( gStdioChannel );
 	App.AddChannel( HttpChannel );
-//	App.AddChannel( WebSocketChannel );
+	App.AddChannel( WebSocketChannel );
 //	App.AddChannel( SocksChannel );
 
 	//	when the commandline SENDs a command (a reply), send it to stdout
@@ -311,7 +310,7 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		CaptureChannel->mOnConnected.AddListener( StartSubscription );
 	}
 	
-	std::string TestFilename = "/users/grahamr/Desktop/ringo2.png";
+	std::string TestFilename = "/users/grahamr/Desktop/ringo.png";
 	
 	//	gr: bootup commands
 	auto BootupGet = [TestFilename](TChannel& Channel)
@@ -330,19 +329,21 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		TJob GetFrameJob;
 		GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
 		GetFrameJob.mParams.mCommand = "findfeature";
-		GetFrameJob.mParams.AddParam("feature", "00000100000011111001100000000000" );
+		GetFrameJob.mParams.AddParam("feature", "01011000000000001100100100000000" );
 		GetFrameJob.mParams.AddParam("image", TestFilename, TJobFormat("text/file/png") );
 		Channel.OnJobRecieved( GetFrameJob );
 	};
 	
+	
+	/*
 	//	auto BootupFunc = BootupMatch;
-	auto BootupFunc = BootupGet;
+	//auto BootupFunc = BootupGet;
+	auto BootupFunc = BootupMatch;
 	if ( CommandLineChannel->IsConnected() )
 		BootupFunc( *CommandLineChannel );
 	else
 		CommandLineChannel->mOnConnected.AddListener( BootupFunc );
-	
-
+*/
 	
 	
 	//	run

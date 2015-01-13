@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		FB6650CD1A56FD8600DF0A12 /* SoyDebug.mm in Sources */ = {isa = PBXBuildFile; fileRef = FB6650CC1A56FD8600DF0A12 /* SoyDebug.mm */; };
 		FB6650D71A5B4C2900DF0A12 /* PopRingFeature.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */; };
+		FB88ACF91A656920005FB2A2 /* partytime.png in CopyFiles */ = {isa = PBXBuildFile; fileRef = FB88ACF81A6568CD005FB2A2 /* partytime.png */; };
 		FB8A06211A2E5A200099596C /* memheap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06201A2E5A200099596C /* memheap.cpp */; };
 		FB8A06531A2E5A7C0099596C /* SoyApp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06241A2E5A7C0099596C /* SoyApp.cpp */; };
 		FB8A06541A2E5A7C0099596C /* SoyArray.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB8A06261A2E5A7C0099596C /* SoyArray.cpp */; };
@@ -70,12 +71,13 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		FB8A05911A2E54730099596C /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
+			buildActionMask = 12;
+			dstPath = "";
+			dstSubfolderSpec = 16;
 			files = (
+				FB88ACF91A656920005FB2A2 /* partytime.png in CopyFiles */,
 			);
-			runOnlyForDeploymentPostprocessing = 1;
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -84,6 +86,7 @@
 		FB6650CC1A56FD8600DF0A12 /* SoyDebug.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = SoyDebug.mm; path = src/SoyDebug.mm; sourceTree = "<group>"; };
 		FB6650D51A5B4C2900DF0A12 /* PopRingFeature.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = PopRingFeature.cpp; path = src/PopRingFeature.cpp; sourceTree = SOURCE_ROOT; };
 		FB6650D61A5B4C2900DF0A12 /* PopRingFeature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PopRingFeature.h; path = src/PopRingFeature.h; sourceTree = SOURCE_ROOT; };
+		FB88ACF81A6568CD005FB2A2 /* partytime.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = partytime.png; sourceTree = "<group>"; };
 		FB8A05931A2E54730099596C /* PopFeatures */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PopFeatures; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB8A05A61A2E57700099596C /* PopApp.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = PopApp.xcconfig; path = ../NewChromantics/PopTrack/PopApp.xcconfig; sourceTree = SOURCE_ROOT; };
 		FB8A06201A2E5A200099596C /* memheap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memheap.cpp; path = ../ofxSoylent/src/memheap.cpp; sourceTree = "<group>"; };
@@ -204,7 +207,7 @@
 		FBB3284C1A2E75EF003DE7AA /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
 		FBC3A0DF1A308648009DA49E /* SoyScope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SoyScope.cpp; path = ../ofxSoylent/src/SoyScope.cpp; sourceTree = "<group>"; };
 		FBC3A0E01A308648009DA49E /* SoyScope.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SoyScope.h; path = ../ofxSoylent/src/SoyScope.h; sourceTree = "<group>"; };
-		FBC3A0E51A328A56009DA49E /* websrc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = websrc; sourceTree = "<group>"; };
+		FBC3A0E51A328A56009DA49E /* websrc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = websrc; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -230,6 +233,14 @@
 			name = stb;
 			sourceTree = "<group>";
 		};
+		FB88ACF31A656815005FB2A2 /* websrc */ = {
+			isa = PBXGroup;
+			children = (
+				FB88ACF81A6568CD005FB2A2 /* partytime.png */,
+			);
+			path = websrc;
+			sourceTree = SOURCE_ROOT;
+		};
 		FB8A058A1A2E54730099596C = {
 			isa = PBXGroup;
 			children = (
@@ -240,6 +251,7 @@
 				FB8A05A61A2E57700099596C /* PopApp.xcconfig */,
 				FB8A067B1A2E68C20099596C /* poplib */,
 				FB8A06221A2E5A280099596C /* soylib */,
+				FB88ACF31A656815005FB2A2 /* websrc */,
 				FBC3A0E51A328A56009DA49E /* websrc */,
 				FB8A05951A2E54730099596C /* src */,
 				FB8A05941A2E54730099596C /* Products */,

@@ -67,7 +67,7 @@ Div#Image
 </style>
 <body>
 	
-	<div id="Image"><img src="partytime.png" id="FeaturesImage" /></div>
+	<div id="Image"><img src="http://localhost:8080/file/PartyTime.png" crossOrigin="anonymous" id="FeaturesImage" /></div>
 	
 	<div>
 		<div>Medias</div>
@@ -641,7 +641,6 @@ var $OnFeaturesImageClick = function(e)
 {
 	var $Clickx = e.offsetX;
 	var $Clicky = e.offsetY;
-	console.log(e);
 
 	var $Inputx = $GetFeatureInputs[1];
 	var $Inputy = $GetFeatureInputs[2];

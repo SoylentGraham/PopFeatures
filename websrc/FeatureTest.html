@@ -41,14 +41,43 @@
 		float:right;
 	}
 
+.Marker
+{
+	width:		10px;
+	height:		10px;
+	position:	relative;
+	color:		#fff;
+	font-size:	8px;
+	opacity:	0.8;
+	margin:		-5px 0px 0px -5px;	/*	center */
+	z-index:	10;
+}
+
+.Marker:hover
+{
+	font-size:	20px;
+}
+
+#ImageMarkers
+{
+	pointer-events:	none;	/* let click go through to below */
+	position:	absolute;
+	width:		400px;
+	display:	block;
+	height:		400px;
+	left:		0px;
+	top:		0px;
+}
+
 Div#Image
 {
-	padding-left: 300px;
+	position:	relative;
+	margin-left: 300px;
 }
 </style>
 <body>
 	
-	<div id="Image"><img src="http://localhost:8080/file/PartyTime200.png" crossOrigin="anonymous" id="FeaturesImage" /></div>
+	<div id="Image"><img src="http://localhost:8080/file/PartyTime200.png" crossOrigin="anonymous" id="FeaturesImage" /><div id="ImageMarkers"></div></div>
 	
 	<div>
 		<div>Features</div>
@@ -75,28 +104,71 @@ function PrettifyString($String)
 	return $String;
 }
 
+function ClearImageMarkers()
+{
+	var $FeaturesImage = GetElement("ImageMarkers");
+	while ( $FeaturesImage.hasChildNodes() )
+		$FeaturesImage.removeChild( $FeaturesImage.firstChild );
+}
+
+function AddImageMarker($ParentElement,$x,$y,$Colour,$Label)
+{
+	var $MarkerDiv = document.createElement("div");
+	$ParentElement.appendChild( $MarkerDiv );
+	$MarkerDiv.className = "Marker";
+	$MarkerDiv.innerText = "label: " + $Label;
+	$MarkerDiv.style.left = $x + "px";
+	$MarkerDiv.style.top = $y + "px";
+	$MarkerDiv.style.backgroundColor = $Colour;
+	$MarkerDiv.style.color = "white";
+}
+
+
+function ShowFeatureMatches($FeatureElement,$Matches)
+{
+	var $FeaturesImage = GetElement("ImageMarkers");
+	ClearImageMarkers();
+
+	//	add markers for each thing
+	AddImageMarker( $FeaturesImage, $FeatureElement.mFeatureX, $FeatureElement.mFeatureY, "green", "" );
+	
+	console.log($Matches);
+	var $AddMatchMarker = function($Match)
+	{
+		var $Score = parseInt( parseFloat($Match.Score) * 100.0 );
+		AddImageMarker( $FeaturesImage, $Match.x, $Match.y, "red", $Score + "%" );
+	};
+	forEach( $Matches, $AddMatchMarker );
+}
+
 function OnReGetFeature($Json)
 {
 	var $ParentElement = GetElement('Features');
 	
+	var $Feature = $Json.default;
+	
 	//	create a new div with various info/buttons
 	var $FeatureElement = document.createElement('div');
-	$FeatureElement.className = 'Feature';
 	$ParentElement.appendChild($FeatureElement);
+	$FeatureElement.className = 'Feature';
+	$FeatureElement.id = "Feature_" + $Feature;
+	$FeatureElement.mFeature = $Feature;
+	$FeatureElement.mFeatureX = $Json.x;
+	$FeatureElement.mFeatureY = $Json.y;
 	
 	var $FeatureValueElement = document.createElement('span');
-	$FeatureValueElement.className = 'Value';
 	$FeatureElement.appendChild($FeatureValueElement);
-	$FeatureValueElement.innerText = $Json.default;
+	$FeatureValueElement.className = 'Value';
+	$FeatureValueElement.innerText = $Feature;
 	
 	var $FeatureXElement = document.createElement('span');
-	$FeatureXElement.className = 'x';
 	$FeatureElement.appendChild($FeatureXElement);
+	$FeatureXElement.className = 'x';
 	$FeatureXElement.innerText = $Json.x;
 	
 	var $FeatureYElement = document.createElement('span');
-	$FeatureYElement.className = 'y';
 	$FeatureElement.appendChild($FeatureYElement);
+	$FeatureYElement.className = 'y';
 	$FeatureYElement.innerText = $Json.y;
 	
 	var $SendJobFunction = function($Job)
@@ -106,8 +178,37 @@ function OnReGetFeature($Json)
 	}
 	
 	var $Inputs = MakeFindFeatureButton( $FeatureElement, $SendJobFunction );
-	$Inputs[1].value = $Json.default;
+	$Inputs[1].value = $Feature;
+	
+	ShowFeatureMatches( $FeatureElement, new Array() );
 }
+
+
+function OnReFindFeature($Json)
+{
+	var $ParentElement = GetElement('Features');
+	var $FeatureElement = GetElement("Feature_" + $Json.Feature );
+	if ( !$FeatureElement )
+	{
+		OnError("failed to find feature div for " + $Json.Feature );
+		return;
+	}
+	
+	//	array of TFeatureMatch
+	var $Matches = $Json.default.Matches;
+
+	//	create a new div with various info/buttons
+	var $MatchesElement = document.createElement('span');
+	$MatchesElement.className = 'FeatureMatches';
+	$FeatureElement.appendChild($MatchesElement);
+	$MatchesElement.innerText = "" + $Matches.length + " matches";
+	$MatchesElement.mMatches = $Matches;
+	$MatchesElement.onclick = function()	{	ShowFeatureMatches( $FeatureElement, $Matches );	}
+	
+	//var $Inputs = MakeFindFeatureButton( $FeatureElement, $SendJobFunction );
+	//$Inputs[1].value = $Json.default;
+}
+
 
 function UpdateSessions($Sessions)
 {
@@ -231,6 +332,9 @@ function OnWebsocketMessage($SoyWebSocket,$Message)
 
 		if ( $Json.mCommand == "re:getfeature" )
 			OnReGetFeature( $Json );
+			
+		if ( $Json.mCommand == "re:findfeature" )
+			OnReFindFeature( $Json );
 	}
 	else
 	{
@@ -530,6 +634,9 @@ function MakeFindFeatureButton($ParentElement,$SendJobFunc)
 	var $Div = document.createElement('div');
 	$ParentElement.appendChild($Div);
 	var $InputFeature = MakeInput( $Div, "feature" );
+	var $InputMinScore = MakeInput( $Div, "0.7" );
+	var $InputMatchStepX = MakeInput( $Div, "10" );
+	var $InputMatchStepY = MakeInput( $Div, "10" );
 	var $Button = MakeButton( $Div, "Find Feature" );
 	
 	var $OnClick = function(e)
@@ -537,6 +644,9 @@ function MakeFindFeatureButton($ParentElement,$SendJobFunc)
 		//	var This = e.toElement;
 		var $Job = new SoyJob('findfeature');
 		$Job.Feature = $InputFeature.value;
+		$Job.MinScore = $InputMinScore.value;
+		$Job.MatchStepX = $InputMatchStepX.value;
+		$Job.MatchStepY = $InputMatchStepY.value;
 		$SendJobFunc($Job);
 	};
 	$Button.onclick = $OnClick;

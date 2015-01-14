@@ -45,7 +45,7 @@
 {
 	width:		10px;
 	height:		10px;
-	position:	relative;
+	position:	absolute;
 	color:		#fff;
 	font-size:	8px;
 	opacity:	0.8;
@@ -73,6 +73,12 @@ Div#Image
 {
 	position:	relative;
 	margin-left: 300px;
+}
+
+.FeatureMatches
+{
+	text-decoration:	underline;
+	cursor:				pointer;
 }
 </style>
 <body>
@@ -116,7 +122,7 @@ function AddImageMarker($ParentElement,$x,$y,$Colour,$Label)
 	var $MarkerDiv = document.createElement("div");
 	$ParentElement.appendChild( $MarkerDiv );
 	$MarkerDiv.className = "Marker";
-	$MarkerDiv.innerText = "label: " + $Label;
+	$MarkerDiv.innerText = $Label;
 	$MarkerDiv.style.left = $x + "px";
 	$MarkerDiv.style.top = $y + "px";
 	$MarkerDiv.style.backgroundColor = $Colour;
@@ -130,7 +136,7 @@ function ShowFeatureMatches($FeatureElement,$Matches)
 	ClearImageMarkers();
 
 	//	add markers for each thing
-	AddImageMarker( $FeaturesImage, $FeatureElement.mFeatureX, $FeatureElement.mFeatureY, "green", "" );
+//	AddImageMarker( $FeaturesImage, $FeatureElement.mFeatureX, $FeatureElement.mFeatureY, "green", "" );
 	
 	console.log($Matches);
 	var $AddMatchMarker = function($Match)
@@ -179,6 +185,7 @@ function OnReGetFeature($Json)
 	
 	var $Inputs = MakeFindFeatureButton( $FeatureElement, $SendJobFunction );
 	$Inputs[1].value = $Feature;
+	$Inputs[0].onclick();
 	
 	ShowFeatureMatches( $FeatureElement, new Array() );
 }
@@ -207,6 +214,8 @@ function OnReFindFeature($Json)
 	
 	//var $Inputs = MakeFindFeatureButton( $FeatureElement, $SendJobFunction );
 	//$Inputs[1].value = $Json.default;
+	
+	$MatchesElement.onclick();
 }
 
 

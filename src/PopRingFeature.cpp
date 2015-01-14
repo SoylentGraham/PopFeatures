@@ -1,7 +1,53 @@
 #include "PopRingFeature.h"
 #include <SoyApp.h>
+#include <TJob.h>
 
 
+
+template <> template<>
+bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<TFeatureMatch>& Data)
+{
+	auto& Json = this->mValue;
+	auto& Match = Data.mValue;
+
+	Json.Insert( MakeJsonMember("x", Match.mCoord.x ) );
+	Json.Insert( MakeJsonMember("y", Match.mCoord.y ) );
+	Json.Insert( MakeJsonMember("Score", Match.mScore ) );
+	
+	SoyData_Stack<std::string> FeatureString;
+	FeatureString.Encode( SoyData_Impl<TPopRingFeature>(Match.mFeature) );
+	Json.Insert( MakeJsonMember("Feature", FeatureString.mValue ) );
+
+	this->OnEncode( Data );
+	return true;
+}
+	
+template <> template<>
+bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<Array<TFeatureMatch>>& Data)
+{
+	auto& Json = this->mValue;
+	auto& Matchs = Data.mValue;
+	
+	auto MatchesJsonIt = Json.Insert( json::Object::Member("Matches") );
+	json::Array& MatchesJson = MatchesJsonIt->element;
+
+	for ( int i=0;	i<Matchs.GetSize();	i++ )
+	{
+		auto& Match = Matchs[i];
+		
+		//	make json object
+		SoyData_Stack<json::Object> MatchJson;
+		bool Encoded = MatchJson.Encode( SoyData_Impl<TFeatureMatch>(Match) );
+		if ( !Soy::Assert( Encoded, "Failed to encode TFeatureMatch to json" ) )
+			return false;
+		
+		MatchesJson.Insert( MatchJson.mValue );
+	}
+			
+	OnEncode( Data.GetFormat() );
+	return true;
+}
+				
 
 TPopRingFeatureParams::TPopRingFeatureParams() :
 	mMinScore		( 0.7f ),
@@ -11,9 +57,15 @@ TPopRingFeatureParams::TPopRingFeatureParams() :
 	
 }
 
-TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& params) :
+TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& Params) :
 	TPopRingFeatureParams	()
 {
+	Params.GetParamAs("MinScore", mMinScore );
+	Params.GetParamAs("MatchStepX", mMatchStepX );
+	Params.GetParamAs("MatchStepY", mMatchStepY );
+	
+	mMatchStepX = std::max( 1, mMatchStepX );
+	mMatchStepY = std::max( 1, mMatchStepY );
 }
 
 

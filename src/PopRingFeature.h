@@ -83,6 +83,13 @@ public:
 };
 
 
+template <> template<>
+bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<Array<TFeatureMatch>>& Data);
+template <> template<>
+bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<TFeatureMatch>& Data);
+
+
+
 
 class TFeatureExtractor
 {

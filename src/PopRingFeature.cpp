@@ -2,7 +2,7 @@
 #include <SoyApp.h>
 #include <TJob.h>
 #include <math.h>
-
+#include <SortArray.h>
 
 namespace Soy
 {
@@ -62,11 +62,13 @@ bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<Array<TFeatureMatch>>
 				
 
 TPopRingFeatureParams::TPopRingFeatureParams() :
-	mMinScore		( 0.7f ),
-	mMatchStepX		( 10 ),
-	mMatchStepY		( 10 ),
-	mRadius			( 4.f ),
-	mSampleCount	( 32 )
+	mMinScore			( 0.7f ),
+	mMatchStepX			( 10 ),
+	mMatchStepY			( 10 ),
+	mRadius				( 4.f ),
+	mSampleCount		( 32 ),
+	mBrighterTolerance	( 0.10f ),
+	mMaxMatches			( 10 )
 {
 	
 }
@@ -78,7 +80,9 @@ TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& Params) :
 	Params.GetParamAs("MatchStepX", mMatchStepX );
 	Params.GetParamAs("MatchStepY", mMatchStepY );
 	Params.GetParamAs("Radius", mRadius );
-	Params.GetParamAs("Samples", mSampleCount );
+	Params.GetParamAs("SampleCount", mSampleCount );
+	Params.GetParamAs("BrighterTolerance", mBrighterTolerance );
+	Params.GetParamAs("MaxMatches", mMaxMatches );
 	
 	mRadius = std::max( 1.f, mRadius );
 	mSampleCount = std::max( 1, mSampleCount );
@@ -89,7 +93,9 @@ TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& Params) :
 
 const Array<vec2x<int>>& TPopRingFeatureParams::GetSampleOffsets()
 {
-	mSampleOffsets.Clear();
+	//	cached
+	if ( !mSampleOffsets.IsEmpty() )
+		return mSampleOffsets;
 	
 	for ( int i=0;	i<mSampleCount;	i++ )
 	{
@@ -107,20 +113,25 @@ const Array<vec2x<int>>& TPopRingFeatureParams::GetSampleOffsets()
 float TPopRingFeature::GetMatchScore(const TPopRingFeature& Match,const TPopRingFeatureParams& Params) const
 {
 	auto& That = Match;
-	//	how many bits match?
-	int BitCount = sizeof(mBrighters) * 8;
+
+	//	mis-matched features
+	if ( this->mBrighters.GetSize() != That.mBrighters.GetSize() )
+		return 0.f;
+	if ( this->mBrighters.IsEmpty() )
+		return 0.f;
 	
+	//	how many bits match?
 	int MatchCount = 0;
-	for ( int b=0;	b<BitCount;	b++ )
+	for ( int b=0;	b<mBrighters.GetSize();	b++ )
 	{
-		bool ThisBit = (this->mBrighters & (1<<b)) != 0;
-		bool ThatBit = (That.mBrighters & (1<<b)) != 0;
+		bool ThisBit = this->mBrighters[b];
+		bool ThatBit = That.mBrighters[b];
 	
 		if ( ThisBit == ThatBit )
 			MatchCount++;
 	}
 	
-	float Score = MatchCount / static_cast<float>( BitCount );
+	float Score = MatchCount / static_cast<float>( mBrighters.GetSize() );
 	return Score;
 }
 
@@ -142,22 +153,33 @@ public:
 		
 	}
 	
+	float					GetLuminosity(int r8,int g8,int b8)
+	{
+		float r = r8 / 255.f;
+		float g = g8 / 255.f;
+		float b = b8 / 255.f;
+		
+		//	http://stackoverflow.com/a/24213274/355753
+		//	3rd picture - HSP Color Model
+		float rWeight = 0.299f;
+		float gWeight = 0.587f;
+		float bWeight = 0.114f;
+		
+		float y = (r*rWeight) + (g*gWeight) + (b*bWeight);
+		return y;
+	}
+	
 	float					GetIntensity(int xoff,int yoff)
 	{
 		int x = mBaseX + xoff;
 		int y = mBaseY + yoff;
 		Clamp(x,y);
-		int PixelTotal = 0;
-		auto* Pixel = &mPixels.GetPixel( x, y, 0 );
-		for ( int c=0;	c<mChannels;	c++ )
-		{
-			auto Component = Pixel[c];
-			PixelTotal += Component;
-		}
-		//	get as 0...1
-		float Intensity = PixelTotal / (static_cast<float>( mChannels ) * 255.f);
-
-		return Intensity;
+		
+		int r = mPixels.GetPixel( x, y, 0 );
+		int g = mPixels.GetPixel( x, y, 1 );
+		int b = mPixels.GetPixel( x, y, 2 );
+		
+		return GetLuminosity( r, g, b );
 	}
 	
 	void					Clamp(int& x,int& y)
@@ -187,10 +209,7 @@ bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl&
 	TSampleWrapper Sampler( Pixels, Params, x, y );
 
 	//	get intensity of root pixel
-	float BaseIntensity = Sampler.GetIntensity(0,0);
-	
-	Array<char> Data;
-	TBitWriter BitWriter( GetArrayBridge(Data) );
+	float BaseIntensity = Sampler.GetIntensity(0,0) - Params.mBrighterTolerance;
 	
 	auto& SampleOffsets = Params.GetSampleOffsets();
 	char DebugBits[1000] = {0};
@@ -200,29 +219,17 @@ bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl&
 		float Intensity = Sampler.GetIntensity( Offset.x, Offset.y );
 		bool Bit = ( Intensity >= BaseIntensity );
 
-		BitWriter.WriteBit(Bit);
+		Feature.mBrighters.PushBack( Bit );
 		DebugBits[c] = Bit;
 	}
-	
-	//	read back
-	if ( Data.GetSize() > sizeof(Feature.mBrighters) )
-	{
-		Error << "Wrote too many bits making feature";
-		return false;
-	}
-	
-	TBitReader BitReader( GetArrayBridge(Data) );
-	if ( !BitReader.Read( reinterpret_cast<int&>(Feature.mBrighters), BitWriter.BitPosition() ) )
-	{
-		Error << "Error reading back bits";
-		return false;
-	}
-	
+		
 	return true;
 }
 
 bool TFeatureExtractor::FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,const SoyPixelsImpl& Pixels,const TPopRingFeature& Feature,TPopRingFeatureParams& Params,std::stringstream& Error)
 {
+	auto SortedMatches = GetSortArray( Matches, TSortPolicy_Descending<TFeatureMatch>() );
+
 	//	step through the image
 	for ( int x=0;	x<Pixels.GetWidth();	x+=Params.mMatchStepX )
 	{
@@ -238,14 +245,18 @@ bool TFeatureExtractor::FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,
 			if ( Score < Params.mMinScore )
 				continue;
 			
-			auto& Match = Matches.PushBack();
+			TFeatureMatch Match;
 			Match.mCoord.x = x;
 			Match.mCoord.y = y;
 			Match.mScore = Score;
 			Match.mFeature = TestFeature;
-		
+			SortedMatches.Push(Match);
 		}
 	}
+	
+	//	cap number of outputs
+	if ( Matches.GetSize() > Params.mMaxMatches )
+		Matches.SetSize( Params.mMaxMatches );
 	
 	return true;
 }

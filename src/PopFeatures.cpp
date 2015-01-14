@@ -159,17 +159,7 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	{
 		Reply.mParams.AddDefaultParam( FeatureMatches );
 	}
-	/*
-	std::Debug << "Found " << FeatureMatches.GetSize() << " features:" << std::endl;
-	auto SortedMatches = GetSortArray( FeatureMatches, TSortPolicy_Descending<TFeatureMatch>() );
-	SortedMatches.Sort();
-	for ( int i=0;	i<FeatureMatches.GetSize();	i++ )
-	{
-		auto& Match = FeatureMatches[i];
-		Output << i << ": " << Match.mScore << " @ " << Match.mCoord.x << "," << Match.mCoord.y << std::endl;
-	}
-	Reply.mParams.AddDefaultParam( Output.str() );
-*/	
+
 	if ( !Error.str().empty() )
 		Reply.mParams.AddErrorParam( Error.str() );
 	

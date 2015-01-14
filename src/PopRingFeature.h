@@ -49,6 +49,8 @@ public:
 	int		mMatchStepX;
 	int		mMatchStepY;
 	float	mMinScore;
+	float	mBrighterTolerance;
+	int		mMaxMatches;
 	
 	//	gr: todo: split into multiple rings/guassian sample
 	float	mRadius;
@@ -62,15 +64,14 @@ private:
 class TPopRingFeature
 {
 public:
-	TPopRingFeature() :
-		mBrighters	( 0 )
+	TPopRingFeature()
 	{
 	}
 	
 	float		GetMatchScore(const TPopRingFeature& Match,const TPopRingFeatureParams& Params) const;
 	
 public:
-	uint32		mBrighters;	//	1 brighter, 0 darker
+	BufferArray<bool,100>	mBrighters;	//	1 brighter, 0 darker
 };
 
 
@@ -117,20 +118,13 @@ inline bool SoyData_Impl<std::string>::DecodeTo(SoyData_Impl<TPopRingFeature>& D
 	auto& Feature = Data.mValue;
 
 	//	read char by char
-	Array<char> Bits;
-	TBitWriter BitWriter( GetArrayBridge(Bits) );
+	Feature.mBrighters.Clear();
 	for ( int i=0;	i<String.length();	i++ )
 	{
 		bool Bit = (String[i] == '1');
-		BitWriter.WriteBit( Bit );
+		Feature.mBrighters.PushBack( Bit );
 	}
 	
-	TBitReader BitReader( GetArrayBridge(Bits) );
-	if ( !BitReader.Read( reinterpret_cast<int&>(Feature.mBrighters), BitWriter.BitPosition() ) )
-	{
-		std::Debug << "Error reading back bits from string" << std::endl;
-		return false;
-	}
 	return true;
 }
 	
@@ -140,13 +134,10 @@ inline bool SoyData_Impl<std::string>::Encode(const SoyData_Impl<TPopRingFeature
 	auto& String = this->mValue;
 	auto& Feature = Data.mValue;
 
-//	std::bitset<32> Bits( std::string("10101010101010101010101010101010" ));
-//	auto BitsLong = Bits.to_ulong();
-
 	std::stringstream BitsString;
-	for ( int i=0;	i<sizeof(Feature.mBrighters)*8;	i++ )
+	for ( int i=0;	i<Feature.mBrighters.GetSize();	i++ )
 	{
-		bool Bit = (Feature.mBrighters & (1<<i)) != 0;
+		bool Bit = Feature.mBrighters[i];
 		BitsString << (Bit ? "1" : "0");
 	}
 	String = BitsString.str();

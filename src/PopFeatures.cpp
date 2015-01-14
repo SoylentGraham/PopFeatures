@@ -123,8 +123,6 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	
 	//	pull image
 	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
-	auto Stepx = Job.mParams.GetParamAs<int>("stepx");
-	auto Stepy = Job.mParams.GetParamAs<int>("stepy");
 	auto Feature = Job.mParams.GetParamAs<TPopRingFeature>("Feature");
 	
 	if ( !Image.IsValid() )
@@ -145,10 +143,24 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	std::stringstream Error;
 	TFeatureExtractor::FindFeatureMatches( GetArrayBridge(FeatureMatches), Image, Feature, Params, Error );
 	
+	//	some some params back with the reply
 	TJobReply Reply( JobAndChannel );
+	Reply.mParams.AddParam( Job.mParams.GetParam("Feature") );
 	
-	std::stringstream Output;
-	Output << "Found " << FeatureMatches.GetSize() << " features:" << std::endl;
+	
+	//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+	std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
+	if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+	{
+		std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+		Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+	}
+	else
+	{
+		Reply.mParams.AddDefaultParam( FeatureMatches );
+	}
+	/*
+	std::Debug << "Found " << FeatureMatches.GetSize() << " features:" << std::endl;
 	auto SortedMatches = GetSortArray( FeatureMatches, TSortPolicy_Descending<TFeatureMatch>() );
 	SortedMatches.Sort();
 	for ( int i=0;	i<FeatureMatches.GetSize();	i++ )
@@ -156,9 +168,8 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 		auto& Match = FeatureMatches[i];
 		Output << i << ": " << Match.mScore << " @ " << Match.mCoord.x << "," << Match.mCoord.y << std::endl;
 	}
-	
 	Reply.mParams.AddDefaultParam( Output.str() );
-	
+*/	
 	if ( !Error.str().empty() )
 		Reply.mParams.AddErrorParam( Error.str() );
 	

@@ -653,9 +653,6 @@ function MakeFindFeatureButton($ParentElement,$SendJobFunc)
 	var $Div = document.createElement('div');
 	$ParentElement.appendChild($Div);
 	var $InputFeature = MakeInput( $Div, "feature" );
-	var $InputMinScore = MakeInput( $Div, "0.8" );
-	var $InputMatchStepX = MakeInput( $Div, "10" );
-	var $InputMatchStepY = MakeInput( $Div, "10" );
 	var $Button = MakeButton( $Div, "Find Feature" );
 	
 	var $OnClick = function(e)
@@ -663,9 +660,10 @@ function MakeFindFeatureButton($ParentElement,$SendJobFunc)
 		//	var This = e.toElement;
 		var $Job = new SoyJob('findfeature');
 		$Job.Feature = $InputFeature.value;
-		$Job.MinScore = $InputMinScore.value;
-		$Job.MatchStepX = $InputMatchStepX.value;
-		$Job.MatchStepY = $InputMatchStepY.value;
+		$Job.MinScore = GetInputMinScore().value;
+		$Job.BrighterTolerance = GetBrighterTolerance().value;
+		$Job.MatchStepX = GetInputStepX().value;
+		$Job.MatchStepY = GetInputStepY().value;
 		$SendJobFunc($Job);
 	};
 	$Button.onclick = $OnClick;
@@ -750,10 +748,8 @@ function SendJobWithImage($Job)
 	console.log($Job.image);
 	$Job.image_format = "datauri/base64/png";
 
-	var $InputRadius = GetRadiusInput();
-	var $InputSampleCount = GetSampleCountInput();
-	$Job.Radius = $InputRadius.value;
-	$Job.SampleCount = $InputSampleCount.value;
+	$Job.Radius = GetInputRadius().value;
+	$Job.SampleCount = GetInputSampleCount().value;
 
 	SendJob($Job);
 }
@@ -766,15 +762,16 @@ MakeSendRawButton($CommandsElement);
 //	global inputs
 var $gInputRadius = MakeInput( $CommandsElement, "5", "Radius" );
 var $gInputSampleCount = MakeInput( $CommandsElement, "32", "SampleCount" );
-function GetRadiusInput()
-{
-	return $gInputRadius;
-}
-function GetSampleCountInput()
-{
-	return $gInputSampleCount;
-}
-
+var $gInputMinScore = MakeInput( $CommandsElement, "0.9", "Min score" );
+var $gInputStepX = MakeInput( $CommandsElement, "2", "Step X" );
+var $gInputStepY = MakeInput( $CommandsElement, "2", "Step Y" );
+var $gInputBrighterTolerance = MakeInput( $CommandsElement, "0.10", "Brighter Tolerance" );
+function GetInputRadius()		{	return $gInputRadius;	}
+function GetInputSampleCount()	{	return $gInputSampleCount;	}
+function GetInputMinScore()		{	return $gInputMinScore;	}
+function GetInputStepX()		{	return $gInputStepX;	}
+function GetInputStepY()		{	return $gInputStepY;	}
+function GetBrighterTolerance()		{	return $gInputBrighterTolerance;	}
 
 var $GetFeatureInputs = MakeGetFeatureButton( $CommandsElement, SendJobWithImage );
 

@@ -117,7 +117,7 @@ function ClearImageMarkers()
 		$FeaturesImage.removeChild( $FeaturesImage.firstChild );
 }
 
-function AddImageMarker($ParentElement,$x,$y,$Colour,$Label)
+function AddImageMarker($ParentElement,$x,$y,$Colour,$Label,$z)
 {
 	var $MarkerDiv = document.createElement("div");
 	$ParentElement.appendChild( $MarkerDiv );
@@ -127,6 +127,7 @@ function AddImageMarker($ParentElement,$x,$y,$Colour,$Label)
 	$MarkerDiv.style.top = $y + "px";
 	$MarkerDiv.style.backgroundColor = $Colour;
 	$MarkerDiv.style.color = "white";
+	$MarkerDiv.style.zIndex = $z;
 }
 
 
@@ -136,13 +137,13 @@ function ShowFeatureMatches($FeatureElement,$Matches)
 	ClearImageMarkers();
 
 	//	add markers for each thing
-//	AddImageMarker( $FeaturesImage, $FeatureElement.mFeatureX, $FeatureElement.mFeatureY, "green", "" );
+	AddImageMarker( $FeaturesImage, $FeatureElement.mFeatureX, $FeatureElement.mFeatureY, "green", "", 10 );
 	
 	console.log($Matches);
 	var $AddMatchMarker = function($Match)
 	{
 		var $Score = parseInt( parseFloat($Match.Score) * 100.0 );
-		AddImageMarker( $FeaturesImage, $Match.x, $Match.y, "red", $Score + "%" );
+		AddImageMarker( $FeaturesImage, $Match.x, $Match.y, "red", $Score + "%", 20 );
 	};
 	forEach( $Matches, $AddMatchMarker );
 }
@@ -422,8 +423,17 @@ function OnClickedSendRawJobData($Socket,$String)
 
 
 
-function MakeInput($ParentElement,$InitialValue)
+function MakeInput($ParentElement,$InitialValue,$Label)
 {
+	$Label = CheckDefaultParam( $Label, null );
+	
+	if ( $Label )
+	{
+		var $LabelElement = document.createElement('label');
+		$LabelElement.innerText = $Label;
+		$ParentElement.appendChild($LabelElement);
+	}
+	
 	var $Input = document.createElement('input');
 	$Input.value = $InitialValue;
 
@@ -643,7 +653,7 @@ function MakeFindFeatureButton($ParentElement,$SendJobFunc)
 	var $Div = document.createElement('div');
 	$ParentElement.appendChild($Div);
 	var $InputFeature = MakeInput( $Div, "feature" );
-	var $InputMinScore = MakeInput( $Div, "0.7" );
+	var $InputMinScore = MakeInput( $Div, "0.8" );
 	var $InputMatchStepX = MakeInput( $Div, "10" );
 	var $InputMatchStepY = MakeInput( $Div, "10" );
 	var $Button = MakeButton( $Div, "Find Feature" );
@@ -739,12 +749,32 @@ function SendJobWithImage($Job)
 	$Job.image = ImageToDataUri( GetElement('FeaturesImage') );
 	console.log($Job.image);
 	$Job.image_format = "datauri/base64/png";
+
+	var $InputRadius = GetRadiusInput();
+	var $InputSampleCount = GetSampleCountInput();
+	$Job.Radius = $InputRadius.value;
+	$Job.SampleCount = $InputSampleCount.value;
+
 	SendJob($Job);
 }
 
 
 var $CommandsElement = GetElement('Commands');
 MakeSendRawButton($CommandsElement);
+
+
+//	global inputs
+var $gInputRadius = MakeInput( $CommandsElement, "5", "Radius" );
+var $gInputSampleCount = MakeInput( $CommandsElement, "32", "SampleCount" );
+function GetRadiusInput()
+{
+	return $gInputRadius;
+}
+function GetSampleCountInput()
+{
+	return $gInputSampleCount;
+}
+
 
 var $GetFeatureInputs = MakeGetFeatureButton( $CommandsElement, SendJobWithImage );
 

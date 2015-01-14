@@ -43,9 +43,19 @@ public:
 	TPopRingFeatureParams();
 	TPopRingFeatureParams(const	TJobParams& params);
 	
+	const Array<vec2x<int>>&	GetSampleOffsets();
+	
+public:
 	int		mMatchStepX;
 	int		mMatchStepY;
 	float	mMinScore;
+	
+	//	gr: todo: split into multiple rings/guassian sample
+	float	mRadius;
+	int		mSampleCount;
+
+private:
+	Array<vec2x<int>>	mSampleOffsets;		//	cached from radius & step
 };
 
 
@@ -95,8 +105,8 @@ class TFeatureExtractor
 {
 public:
 	
-	static bool		GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& Pixels,int x,int y,const TPopRingFeatureParams& Params,std::stringstream& Error);
-	static bool		FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,const SoyPixelsImpl& Pixels,const TPopRingFeature& Feature,const TPopRingFeatureParams& Params,std::stringstream& Error);
+	static bool		GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& Pixels,int x,int y,TPopRingFeatureParams& Params,std::stringstream& Error);
+	static bool		FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,const SoyPixelsImpl& Pixels,const TPopRingFeature& Feature,TPopRingFeatureParams& Params,std::stringstream& Error);
 
 };
 

@@ -1,8 +1,20 @@
 #include "PopRingFeature.h"
 #include <SoyApp.h>
 #include <TJob.h>
+#include <math.h>
 
 
+namespace Soy
+{
+	float RadToDeg(float Radians)
+	{
+		return Radians * (180.f/M_PI);
+	}
+	float DegToRad(float Degrees)
+	{
+		return Degrees * (M_PI / 180.f);
+	}
+}
 
 template <> template<>
 bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<TFeatureMatch>& Data)
@@ -52,7 +64,9 @@ bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<Array<TFeatureMatch>>
 TPopRingFeatureParams::TPopRingFeatureParams() :
 	mMinScore		( 0.7f ),
 	mMatchStepX		( 10 ),
-	mMatchStepY		( 10 )
+	mMatchStepY		( 10 ),
+	mRadius			( 4.f ),
+	mSampleCount	( 32 )
 {
 	
 }
@@ -63,11 +77,32 @@ TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& Params) :
 	Params.GetParamAs("MinScore", mMinScore );
 	Params.GetParamAs("MatchStepX", mMatchStepX );
 	Params.GetParamAs("MatchStepY", mMatchStepY );
+	Params.GetParamAs("Radius", mRadius );
+	Params.GetParamAs("Samples", mSampleCount );
 	
+	mRadius = std::max( 1.f, mRadius );
+	mSampleCount = std::max( 1, mSampleCount );
+	mSampleCount = std::min( 32, mSampleCount );
 	mMatchStepX = std::max( 1, mMatchStepX );
 	mMatchStepY = std::max( 1, mMatchStepY );
 }
 
+const Array<vec2x<int>>& TPopRingFeatureParams::GetSampleOffsets()
+{
+	mSampleOffsets.Clear();
+	
+	for ( int i=0;	i<mSampleCount;	i++ )
+	{
+		float t = i / static_cast<float>( mSampleCount );
+		float rad = Soy::DegToRad( 360.f * t );
+		float x = cosf( rad ) * mRadius;
+		float y = sinf( rad ) * mRadius;
+		auto& Offset = mSampleOffsets.PushBack();
+		Offset.x = x;
+		Offset.y = y;
+	}
+	return mSampleOffsets;
+}
 
 float TPopRingFeature::GetMatchScore(const TPopRingFeature& Match,const TPopRingFeatureParams& Params) const
 {
@@ -146,44 +181,8 @@ public:
 };
 
 
-void AddBoxRing(ArrayBridge<vec2x<int>>& Coords,int x,int y)
-{
-	Coords.PushBack( vec2x<int>( x, y ) );
-}
 
-void GetBoxRing(ArrayBridge<vec2x<int>>&& Coords,int Radius,int Step)
-{
-	//	top row
-	{
-		int y = -Radius;
-		for ( int x=-Radius;	x<=Radius;	x+=Step )
-			AddBoxRing( Coords, x, y );
-	}
-	
-	//	right col (ignore top and bottom rows)
-	{
-		int x = Radius;
-		for ( int y=-Radius+1;	y<=Radius-1;	y+=Step )
-			AddBoxRing( Coords, x, y );
-	}
-
-	//	bottom row
-	{
-		int y = Radius;
-		for ( int x=-Radius;	x<=Radius;	x+=Step )
-			AddBoxRing( Coords, x, y );
-	}
-	
-	//	left col (ignore top and bottom rows)
-	{
-		int x = -Radius;
-		for ( int y=-Radius+1;	y<=Radius-1;	y+=Step )
-			AddBoxRing( Coords, x, y );
-	}
-}
-
-
-bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& Pixels,int x,int y,const TPopRingFeatureParams& Params,std::stringstream& Error)
+bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl& Pixels,int x,int y,TPopRingFeatureParams& Params,std::stringstream& Error)
 {
 	TSampleWrapper Sampler( Pixels, Params, x, y );
 
@@ -193,19 +192,16 @@ bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl&
 	Array<char> Data;
 	TBitWriter BitWriter( GetArrayBridge(Data) );
 	
-	//	first box ring
-	int Radius = 7;
-	int Step = 2;
-	Array<vec2x<int>> SampleOffsets;
-	GetBoxRing( GetArrayBridge(SampleOffsets), Radius, Step );
+	auto& SampleOffsets = Params.GetSampleOffsets();
+	char DebugBits[1000] = {0};
 	for ( int c=0;	c<SampleOffsets.GetSize();	c++ )
 	{
 		auto& Offset = SampleOffsets[c];
 		float Intensity = Sampler.GetIntensity( Offset.x, Offset.y );
-		if ( Intensity < BaseIntensity )
-			BitWriter.WriteBit(0);
-		else
-			BitWriter.WriteBit(1);
+		bool Bit = ( Intensity >= BaseIntensity );
+
+		BitWriter.WriteBit(Bit);
+		DebugBits[c] = Bit;
 	}
 	
 	//	read back
@@ -225,7 +221,7 @@ bool TFeatureExtractor::GetFeature(TPopRingFeature& Feature,const SoyPixelsImpl&
 	return true;
 }
 
-bool TFeatureExtractor::FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,const SoyPixelsImpl& Pixels,const TPopRingFeature& Feature,const TPopRingFeatureParams& Params,std::stringstream& Error)
+bool TFeatureExtractor::FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,const SoyPixelsImpl& Pixels,const TPopRingFeature& Feature,TPopRingFeatureParams& Params,std::stringstream& Error)
 {
 	//	step through the image
 	for ( int x=0;	x<Pixels.GetWidth();	x+=Params.mMatchStepX )

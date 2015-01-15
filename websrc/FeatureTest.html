@@ -9,6 +9,7 @@
 		<script src="soyjs/soy.js"></script>
 		<script src="soyjs/SoyRect.js"></script>
 		<script src="soyjs/SoyAsset.js"></script>
+		<script src="StackBlur.js"></script>
 		
 	</head>
 <style>
@@ -72,7 +73,7 @@
 Div#Image
 {
 	position:	relative;
-	margin-left: 300px;
+	margin-left: 10px;
 }
 
 .FeatureMatches
@@ -82,8 +83,40 @@ Div#Image
 }
 </style>
 <body>
+
+<script>
 	
-	<div id="Image"><img src="http://localhost:8080/file/PartyTime200.png" crossOrigin="anonymous" id="FeaturesImage" /><div id="ImageMarkers"></div></div>
+	var $FaceParams =
+	{
+		Radius:			20,
+		RingCount:		2,
+		SampleCount:	60,
+		BrighterTolerance:	0.1,
+		BlurRadius:		4,
+		StepX:			2,
+		StepY:			2,
+		MinScore:		0.90,
+		MaxMatches:		200,
+	};
+		
+	var $LogoParams =
+	{
+		Radius:			10,
+		RingCount:		1,
+		SampleCount:	20,
+		BrighterTolerance:	0.16,
+		BlurRadius:		4,
+		StepX:			2,
+		StepY:			2,
+		MinScore:		0.90,
+		MaxMatches:		200,
+	};
+
+	var $DefaultParams = $FaceParams;
+
+</script>
+	
+	<div id="Image"><img src="http://localhost:8080/file/face.jpg" crossOrigin="anonymous" id="FeaturesImage" /><div id="ImageMarkers"></div></div>
 	
 	<div>
 		<div>Features</div>
@@ -664,6 +697,7 @@ function MakeFindFeatureButton($ParentElement,$SendJobFunc)
 		$Job.BrighterTolerance = GetBrighterTolerance().value;
 		$Job.MatchStepX = GetInputStepX().value;
 		$Job.MatchStepY = GetInputStepY().value;
+		$Job.MaxMatches = GetInputMaxMatches().value;
 		$SendJobFunc($Job);
 	};
 	$Button.onclick = $OnClick;
@@ -744,7 +778,13 @@ $Socket2.mOnConnected = $Socket1.mOnConnected;
 
 function SendJobWithImage($Job)
 {
-	$Job.image = ImageToDataUri( GetElement('FeaturesImage') );
+	var $Canvas = ImageToCanvas( GetElement('FeaturesImage') );
+	
+	//	blur canvas
+	var $BlurRadius = GetInputBlur().value;
+	stackBlurCanvasRGB_canvas( $Canvas, 0, 0, $Canvas.width, $Canvas.height, $BlurRadius );
+
+	$Job.image = CanvasToDataUri( $Canvas );
 	console.log($Job.image);
 	$Job.image_format = "datauri/base64/png";
 
@@ -760,18 +800,23 @@ MakeSendRawButton($CommandsElement);
 
 
 //	global inputs
-var $gInputRadius = MakeInput( $CommandsElement, "5", "Radius" );
-var $gInputSampleCount = MakeInput( $CommandsElement, "32", "SampleCount" );
-var $gInputMinScore = MakeInput( $CommandsElement, "0.9", "Min score" );
-var $gInputStepX = MakeInput( $CommandsElement, "2", "Step X" );
-var $gInputStepY = MakeInput( $CommandsElement, "2", "Step Y" );
-var $gInputBrighterTolerance = MakeInput( $CommandsElement, "0.01", "Brighter Tolerance" );
+var $gInputRadius = MakeInput( $CommandsElement, $DefaultParams.Radius, "Radius" );
+var $gInputSampleCount = MakeInput( $CommandsElement, $DefaultParams.SampleCount, "SampleCount" );
+var $gInputMinScore = MakeInput( $CommandsElement, $DefaultParams.MinScore, "Min score" );
+var $gInputStepX = MakeInput( $CommandsElement, $DefaultParams.StepX, "Step X" );
+var $gInputStepY = MakeInput( $CommandsElement, $DefaultParams.StepY, "Step Y" );
+var $gInputBrighterTolerance = MakeInput( $CommandsElement, $DefaultParams.BrighterTolerance, "Brighter Tolerance" );
+var $gInputMaxMatches = MakeInput( $CommandsElement, $DefaultParams.MaxMatches, "Max Matches" );
+var $gInputBlur = MakeInput( $CommandsElement, $DefaultParams.BlurRadius, "Blur Radius" );
+
 function GetInputRadius()		{	return $gInputRadius;	}
 function GetInputSampleCount()	{	return $gInputSampleCount;	}
 function GetInputMinScore()		{	return $gInputMinScore;	}
 function GetInputStepX()		{	return $gInputStepX;	}
 function GetInputStepY()		{	return $gInputStepY;	}
-function GetBrighterTolerance()		{	return $gInputBrighterTolerance;	}
+function GetBrighterTolerance()	{	return $gInputBrighterTolerance;	}
+function GetInputMaxMatches()	{	return $gInputMaxMatches;	}
+function GetInputBlur()			{	return $gInputBlur;	}
 
 var $GetFeatureInputs = MakeGetFeatureButton( $CommandsElement, SendJobWithImage );
 
@@ -791,6 +836,7 @@ var $OnFeaturesImageClick = function(e)
 };
 var $FeaturesImage = GetElement('FeaturesImage');
 $FeaturesImage.onclick = $OnFeaturesImageClick;
+
 
 
 ReconnectLoop();

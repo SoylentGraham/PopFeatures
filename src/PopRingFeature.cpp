@@ -16,6 +16,50 @@ namespace Soy
 	}
 }
 
+
+std::ostream& operator<< (std::ostream &out,const TPopRingFeature &in)
+{
+	auto& Feature = in;
+	for ( int i=0;	i<Feature.mBrighters.GetSize();	i++ )
+	{
+		bool Bit = Feature.mBrighters[i];
+		out << (Bit ? "1" : "0");
+	}
+	return out;
+}
+
+
+template<> template<>
+bool SoyData_Impl<std::string>::DecodeTo(SoyData_Impl<TPopRingFeature>& Data) const
+{
+	auto& String = this->mValue;
+	auto& Feature = Data.mValue;
+	
+	//	read char by char
+	Feature.mBrighters.Clear();
+	for ( int i=0;	i<String.length();	i++ )
+	{
+		bool Bit = (String[i] == '1');
+		Feature.mBrighters.PushBack( Bit );
+	}
+	
+	return true;
+}
+
+template <> template<>
+bool SoyData_Impl<std::string>::Encode(const SoyData_Impl<TPopRingFeature>& Data)
+{
+	auto& String = this->mValue;
+	auto& Feature = Data.mValue;
+	
+	std::stringstream BitsString;
+	BitsString << Feature;
+	String = BitsString.str();
+	//	String = (std::stringstream() << Feature.mBrighters).str();
+	
+	return true;
+}
+
 template <> template<>
 bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<TFeatureMatch>& Data)
 {
@@ -68,7 +112,8 @@ TPopRingFeatureParams::TPopRingFeatureParams() :
 	mRadius				( 4.f ),
 	mSampleCount		( 32 ),
 	mBrighterTolerance	( 0.10f ),
-	mMaxMatches			( 10 )
+	mMaxMatches			( 10 ),
+	mMinInterestingScore	( 0.2f )
 {
 	
 }

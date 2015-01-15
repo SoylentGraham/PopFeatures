@@ -51,6 +51,7 @@ public:
 	float	mMinScore;
 	float	mBrighterTolerance;
 	int		mMaxMatches;
+	float	mMinInterestingScore;
 	
 	//	gr: todo: split into multiple rings/guassian sample
 	float	mRadius;
@@ -68,11 +69,13 @@ public:
 	{
 	}
 	
+	float		GetInterestingScore() const;
 	float		GetMatchScore(const TPopRingFeature& Match,const TPopRingFeatureParams& Params) const;
 	
 public:
 	BufferArray<bool,100>	mBrighters;	//	1 brighter, 0 darker
 };
+std::ostream& operator<< (std::ostream &out,const TPopRingFeature &in);
 
 
 class TFeatureMatch
@@ -93,11 +96,10 @@ public:
 	TPopRingFeature	mFeature;
 };
 
-
-template <> template<>
-bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<Array<TFeatureMatch>>& Data);
 template <> template<>
 bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<TFeatureMatch>& Data);
+template <> template<>
+bool SoyData_Impl<json::Object>::Encode(const SoyData_Impl<Array<TFeatureMatch>>& Data);
 
 
 
@@ -112,36 +114,6 @@ public:
 };
 
 template<> template<>
-inline bool SoyData_Impl<std::string>::DecodeTo(SoyData_Impl<TPopRingFeature>& Data) const
-{
-	auto& String = this->mValue;
-	auto& Feature = Data.mValue;
-
-	//	read char by char
-	Feature.mBrighters.Clear();
-	for ( int i=0;	i<String.length();	i++ )
-	{
-		bool Bit = (String[i] == '1');
-		Feature.mBrighters.PushBack( Bit );
-	}
-	
-	return true;
-}
-	
+bool SoyData_Impl<std::string>::DecodeTo(SoyData_Impl<TPopRingFeature>& Data) const;
 template <> template<>
-inline bool SoyData_Impl<std::string>::Encode(const SoyData_Impl<TPopRingFeature>& Data)
-{
-	auto& String = this->mValue;
-	auto& Feature = Data.mValue;
-
-	std::stringstream BitsString;
-	for ( int i=0;	i<Feature.mBrighters.GetSize();	i++ )
-	{
-		bool Bit = Feature.mBrighters[i];
-		BitsString << (Bit ? "1" : "0");
-	}
-	String = BitsString.str();
-	//	String = (std::stringstream() << Feature.mBrighters).str();
-
-	return true;
-}
+bool SoyData_Impl<std::string>::Encode(const SoyData_Impl<TPopRingFeature>& Data);

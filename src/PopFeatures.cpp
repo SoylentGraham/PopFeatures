@@ -29,6 +29,10 @@ TPopFeatures::TPopFeatures()
 	FindFeatureTraits.mAssumedKeys.PushBack("feature");
 	FindFeatureTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("findfeature", FindFeatureTraits, *this, &TPopFeatures::OnFindFeature );
+
+	TParameterTraits FindInterestingFeaturesTraits;
+	FindInterestingFeaturesTraits.mRequiredKeys.PushBack("image");
+	AddJobHandler("findinterestingfeatures", FindInterestingFeaturesTraits, *this, &TPopFeatures::OnFindInterestingFeatures );
 }
 
 void TPopFeatures::AddChannel(std::shared_ptr<TChannel> Channel)
@@ -116,6 +120,105 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 }
 
 
+void ScoreInterestingFeatures(ArrayBridge<TFeatureMatch>&& Features,float MinScore)
+{
+	std::map<std::string,int> FeatureHistogram;		//	build a histogram to work out how unique the features are
+	int HistogramMaxima = 0;
+
+	for ( int f=0;	f<Features.GetSize();	f++ )
+	{
+		auto& Feature = Features[f];
+		std::stringstream FeatureString;
+		FeatureString << Feature.mFeature;
+		auto& FeatureCount = FeatureHistogram[FeatureString.str()];
+		FeatureCount++;
+		HistogramMaxima = std::max( HistogramMaxima, FeatureCount );
+	}
+	
+	//	now re-apply the feature's score based on their uniqueness in the histogram
+	for ( int f=Features.GetSize()-1;	f>=0;	f-- )
+	{
+		auto& Feature = Features[f];
+		auto& Score = Feature.mScore;
+		std::stringstream FeatureString;
+		FeatureString << Feature.mFeature;
+		auto Occurrance = FeatureHistogram[FeatureString.str()];
+		Score = 1.f - (Occurrance / static_cast<float>(HistogramMaxima));
+		
+		//	cull if score is too low
+		if ( Score >= MinScore )
+			continue;
+		
+		Features.RemoveBlock(f,1);
+	}
+}
+
+void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
+{
+	auto& Job = JobAndChannel.GetJob();
+	
+	//	pull image
+	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
+	if ( !Image.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "Failed to decode image param";
+		TJobReply Reply( JobAndChannel );
+		Reply.mParams.AddErrorParam( Error.str() );
+		
+		TChannel& Channel = JobAndChannel;
+		Channel.OnJobCompleted( Reply );
+		return;
+	}
+
+	//	grab a feature at each point on a grid on the image
+	TPopRingFeatureParams Params( Job.mParams );
+	Array<TFeatureMatch> FeatureMatches;
+	FeatureMatches.Reserve( (Image.GetHeight()/Params.mMatchStepY) * (Image.GetWidth()/Params.mMatchStepX) );
+	std::stringstream Error;
+	for ( int y=0;	y<Image.GetHeight();	y+=Params.mMatchStepY )
+	{
+		for ( int x=0;	x<Image.GetWidth();	x+=Params.mMatchStepX )
+		{
+			TPopRingFeature Feature;
+			TFeatureExtractor::GetFeature( Feature, Image, x, y, Params, Error );
+			if ( !Error.str().empty() )
+				break;
+			auto& Match = FeatureMatches.PushBack();
+			Match.mCoord.x = x;
+			Match.mCoord.y = y;
+			Match.mFeature = Feature;
+			Match.mScore = 0.f;	//	make interesting score
+		}
+	}
+	
+	//	do initial scoring to remove low-interest features
+	ScoreInterestingFeatures( GetArrayBridge( FeatureMatches ), Params.mMinInterestingScore );
+
+	//	re-score to normalise the score. (could probably do this faster, but this is simpler)
+	ScoreInterestingFeatures( GetArrayBridge( FeatureMatches ), 0.f );
+	
+	//	some some params back with the reply
+	TJobReply Reply( JobAndChannel );
+	
+	//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+	std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
+	if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+	{
+		std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+		Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+	}
+	else
+	{
+		Reply.mParams.AddDefaultParam( FeatureMatches );
+	}
+	
+	if ( !Error.str().empty() )
+		Reply.mParams.AddErrorParam( Error.str() );
+	
+	TChannel& Channel = JobAndChannel;
+	Channel.OnJobCompleted( Reply );
+}
 
 void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 {

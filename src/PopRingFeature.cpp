@@ -91,22 +91,37 @@ TPopRingFeatureParams::TPopRingFeatureParams(const TJobParams& Params) :
 	mMatchStepY = std::max( 1, mMatchStepY );
 }
 
+void CalculateOffsets(Array<vec2x<int>>& Offsets,int SampleCount,float Radius)
+{
+	for ( int i=0;	i<SampleCount;	i++ )
+	{
+		float t = i / static_cast<float>( SampleCount );
+		float rad = Soy::DegToRad( 360.f * t );
+		float x = cosf( rad ) * Radius;
+		float y = sinf( rad ) * Radius;
+		auto& Offset = Offsets.PushBack();
+		Offset.x = x;
+		Offset.y = y;
+	}
+}
+
 const Array<vec2x<int>>& TPopRingFeatureParams::GetSampleOffsets()
 {
 	//	cached
 	if ( !mSampleOffsets.IsEmpty() )
 		return mSampleOffsets;
 	
-	for ( int i=0;	i<mSampleCount;	i++ )
-	{
-		float t = i / static_cast<float>( mSampleCount );
-		float rad = Soy::DegToRad( 360.f * t );
-		float x = cosf( rad ) * mRadius;
-		float y = sinf( rad ) * mRadius;
-		auto& Offset = mSampleOffsets.PushBack();
-		Offset.x = x;
-		Offset.y = y;
-	}
+	
+	//	gr: make 2 rings, inner and outer
+	int InnerSamples = (mSampleCount / 3) * 1;
+	float InnerRadius = mRadius / 2.f;
+	CalculateOffsets( mSampleOffsets, InnerSamples, InnerRadius );
+
+	int OuterSamples = (mSampleCount / 3) * 2;
+	float OuterRadius = mRadius / 1.f;
+	CalculateOffsets( mSampleOffsets, OuterSamples, OuterRadius );
+	
+	
 	return mSampleOffsets;
 }
 
@@ -251,6 +266,10 @@ bool TFeatureExtractor::FindFeatureMatches(ArrayBridge<TFeatureMatch>&& Matches,
 			Match.mScore = Score;
 			Match.mFeature = TestFeature;
 			SortedMatches.Push(Match);
+			
+			//	gr: cap during push to reduce allocations
+			if ( Matches.GetSize() > Params.mMaxMatches )
+				Matches.SetSize( Params.mMaxMatches );
 		}
 	}
 	

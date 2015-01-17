@@ -8,7 +8,7 @@
 #include <TJobRelay.h>
 #include <SoyPixels.h>
 #include <SoyString.h>
-#include "PopRingFeature.h"
+#include <TFeatureBinRing.h>
 #include <SortArray.h>
 
 
@@ -101,13 +101,13 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 
 	//	return descriptor and stuff
 	std::stringstream Error;
-	TPopRingFeatureParams Params( Job.mParams );
-	TPopRingFeature Feature;
+	TFeatureBinRingParams Params( Job.mParams );
+	TFeatureBinRing Feature;
 	TFeatureExtractor::GetFeature( Feature, Image, x, y, Params, Error );
 	
 	TJobReply Reply( JobAndChannel );
 	
-	SoyData_Impl<TPopRingFeature> FeatureData( Feature );
+	SoyData_Impl<TFeatureBinRing> FeatureData( Feature );
 	std::shared_ptr<SoyData> FeatureEncoded( new SoyData_Stack<std::string>() );
 	static_cast<SoyData_Stack<std::string>&>(*FeatureEncoded).Encode( FeatureData );
 	
@@ -172,7 +172,7 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 	}
 
 	//	grab a feature at each point on a grid on the image
-	TPopRingFeatureParams Params( Job.mParams );
+	TFeatureBinRingParams Params( Job.mParams );
 	Array<TFeatureMatch> FeatureMatches;
 	FeatureMatches.Reserve( (Image.GetHeight()/Params.mMatchStepY) * (Image.GetWidth()/Params.mMatchStepX) );
 	std::stringstream Error;
@@ -180,7 +180,7 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 	{
 		for ( int x=0;	x<Image.GetWidth();	x+=Params.mMatchStepX )
 		{
-			TPopRingFeature Feature;
+			TFeatureBinRing Feature;
 			TFeatureExtractor::GetFeature( Feature, Image, x, y, Params, Error );
 			if ( !Error.str().empty() )
 				break;
@@ -226,7 +226,7 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	
 	//	pull image
 	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
-	auto Feature = Job.mParams.GetParamAs<TPopRingFeature>("Feature");
+	auto Feature = Job.mParams.GetParamAs<TFeatureBinRing>("Feature");
 	
 	if ( !Image.IsValid() )
 	{
@@ -241,7 +241,7 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	}
 
 	//	run a search
-	TPopRingFeatureParams Params( Job.mParams );
+	TFeatureBinRingParams Params( Job.mParams );
 	Array<TFeatureMatch> FeatureMatches;
 	std::stringstream Error;
 	TFeatureExtractor::FindFeatureMatches( GetArrayBridge(FeatureMatches), Image, Feature, Params, Error );

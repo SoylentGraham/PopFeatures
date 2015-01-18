@@ -162,7 +162,7 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 	if ( !Image.IsValid() )
 	{
 		std::stringstream Error;
-		Error << "Failed to decode image param";
+		Error << "Failed to decode image param (" << Image.GetFormat() << ")";
 		TJobReply Reply( JobAndChannel );
 		Reply.mParams.AddErrorParam( Error.str() );
 		
@@ -201,20 +201,42 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 	//	some some params back with the reply
 	TJobReply Reply( JobAndChannel );
 	
-	//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
-	std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
-	if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+	//	gr: repalce with desired format/container
+	bool AsJson = Job.mParams.GetParamAsWithDefault("asjson", false );
+	bool AsBinary = Job.mParams.GetParamAsWithDefault("asbinary", false );
+	
+	if ( AsJson )
 	{
-		std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
-		Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+		std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
+		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		{
+			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		}
 	}
-	else
+
+	if ( AsBinary )
 	{
+		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+		std::shared_ptr<SoyData_Impl<Array<char>>> FeatureMatchesJsonData( new SoyData_Stack<Array<char>>() );
+		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		{
+			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		}
+	}
+	
+	//	add as generic
+	if ( !Reply.mParams.HasDefaultParam() )
 		Reply.mParams.AddDefaultParam( FeatureMatches );
-	}
 	
 	if ( !Error.str().empty() )
 		Reply.mParams.AddErrorParam( Error.str() );
+	
+	//	gr: need to work out a good way to automatically send back token/meta params (all the ones we didn't read?)
+	auto SerialParam = Job.mParams.GetParam("serial");
+	Reply.mParams.AddParam( SerialParam );
 	
 	TChannel& Channel = JobAndChannel;
 	Channel.OnJobCompleted( Reply );
@@ -251,18 +273,36 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	Reply.mParams.AddParam( Job.mParams.GetParam("Feature") );
 	
 	
-	//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
-	std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
-	if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+	//	gr: repalce with desired format/container
+	bool AsJson = Job.mParams.GetParamAsWithDefault("asjson", false );
+	bool AsBinary = Job.mParams.GetParamAsWithDefault("asbinary", false );
+	
+	if ( AsJson )
 	{
-		std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
-		Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+		std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
+		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		{
+			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		}
 	}
-	else
+	
+	if ( AsBinary )
 	{
+		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+		std::shared_ptr<SoyData_Impl<Array<char>>> FeatureMatchesJsonData( new SoyData_Stack<Array<char>>() );
+		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		{
+			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		}
+	}
+	
+	//	add as generic
+	if ( !Reply.mParams.HasDefaultParam() )
 		Reply.mParams.AddDefaultParam( FeatureMatches );
-	}
-
+	
 	if ( !Error.str().empty() )
 		Reply.mParams.AddErrorParam( Error.str() );
 	
@@ -359,14 +399,14 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	auto HttpChannel = CreateChannelFromInputString("http:8080-8090", SoyRef("http") );
 	auto WebSocketChannel = CreateChannelFromInputString("ws:json:9090-9099", SoyRef("websock") );
 //	auto WebSocketChannel = CreateChannelFromInputString("ws:cli:9090-9099", SoyRef("websock") );
-//	auto SocksChannel = CreateChannelFromInputString("cli:7070-7079", SoyRef("socks") );
+	auto SocksChannel = CreateChannelFromInputString("cli:7090-7099", SoyRef("socks") );
 	
 	
 	App.AddChannel( CommandLineChannel );
 	App.AddChannel( gStdioChannel );
 	App.AddChannel( HttpChannel );
 	App.AddChannel( WebSocketChannel );
-//	App.AddChannel( SocksChannel );
+	App.AddChannel( SocksChannel );
 
 	//	when the commandline SENDs a command (a reply), send it to stdout
 	auto RelayFunc = [](TJobAndChannel& JobAndChannel)
@@ -414,6 +454,8 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		CaptureChannel->mOnConnected.AddListener( StartSubscription );
 	}
 	
+	
+	/*
 	std::string TestFilename = "/users/grahamr/Desktop/ringo.png";
 	
 	//	gr: bootup commands
@@ -438,8 +480,7 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		Channel.OnJobRecieved( GetFrameJob );
 	};
 	
-	
-	/*
+
 	//	auto BootupFunc = BootupMatch;
 	//auto BootupFunc = BootupGet;
 	auto BootupFunc = BootupMatch;

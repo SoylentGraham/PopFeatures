@@ -265,6 +265,7 @@ function OnReFindInterestingFeatures($Json)
 		return;
 	}
 	var $Features = $Json.default.Matches;
+	console.log($Json);
 	
 	//	calc score for each feature
 	var CalcFeatureInterestingScore = function($Feature)
@@ -824,9 +825,11 @@ function SendJobWithImage($Job)
 	var $BlurRadius = GetInputBlur().value;
 	stackBlurCanvasRGB_canvas( $Canvas, 0, 0, $Canvas.width, $Canvas.height, $BlurRadius );
 
-	$Job.image = CanvasToDataUri( $Canvas );
-	console.log($Job.image);
-	$Job.image_format = "datauri/base64/png";
+	$Job.default = CanvasToDataUri( $Canvas );
+	console.log($Job.default);
+	$Job.default_format = "datauri/base64/png";
+	$Job.serial = "file";
+	$Job.asjson = "1";
 
 	//	send all params
 	$Job.Radius = GetInputRadius().value;

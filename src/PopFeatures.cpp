@@ -29,7 +29,12 @@ TPopFeatures::TPopFeatures()
 	FindFeatureTraits.mAssumedKeys.PushBack("feature");
 	FindFeatureTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("findfeature", FindFeatureTraits, *this, &TPopFeatures::OnFindFeature );
-
+	
+	TParameterTraits TrackFeaturesTraits;
+	TrackFeaturesTraits.mAssumedKeys.PushBack("sourcefeatures");
+	TrackFeaturesTraits.mRequiredKeys.PushBack("image");
+	AddJobHandler("trackfeatures", TrackFeaturesTraits, *this, &TPopFeatures::OnTrackFeatures );
+	
 	TParameterTraits FindInterestingFeaturesTraits;
 	FindInterestingFeaturesTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("findinterestingfeatures", FindInterestingFeaturesTraits, *this, &TPopFeatures::OnFindInterestingFeatures );
@@ -185,6 +190,7 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 			if ( !Error.str().empty() )
 				break;
 			auto& Match = FeatureMatches.PushBack();
+			Match.mSourceCoord = vec2x<int>(-1,-1);
 			Match.mCoord.x = x;
 			Match.mCoord.y = y;
 			Match.mFeature = Feature;
@@ -237,6 +243,7 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 	//	gr: need to work out a good way to automatically send back token/meta params (all the ones we didn't read?)
 	auto SerialParam = Job.mParams.GetParam("serial");
 	Reply.mParams.AddParam( SerialParam );
+	Reply.mParams.AddParam( Job.mParams.GetParam("image") );
 	
 	TChannel& Channel = JobAndChannel;
 	Channel.OnJobCompleted( Reply );
@@ -308,6 +315,93 @@ void TPopFeatures::OnFindFeature(TJobAndChannel& JobAndChannel)
 	
 	TChannel& Channel = JobAndChannel;
 	Channel.OnJobCompleted( Reply );
+}
+
+
+void TPopFeatures::OnTrackFeatures(TJobAndChannel& JobAndChannel)
+{
+	//	just grab interesting ones for now
+	OnFindInterestingFeatures( JobAndChannel );
+/*
+	auto& Job = JobAndChannel.GetJob();
+	
+	//	pull image
+	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
+	auto SourceFeatures = Job.mParams.GetParamAs<Array<TFeatureMatch>>("sourcefeatures");
+	
+	if ( !Image.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "Failed to decode image param";
+		TJobReply Reply( JobAndChannel );
+		Reply.mParams.AddErrorParam( Error.str() );
+		
+		TChannel& Channel = JobAndChannel;
+		Channel.OnJobCompleted( Reply );
+		return;
+	}
+	
+	//	find nearest neighbour best match...
+	
+	//	run a search
+	TFeatureBinRingParams Params( Job.mParams );
+	Array<TFeatureMatch> FeatureMatches;
+	std::stringstream Error;
+	//TFeatureExtractor::FindFeatureMatches( GetArrayBridge(FeatureMatches), Image, Feature, Params, Error );
+	for ( int f=0;	f<SourceFeatures.GetSize();	f++ )
+	{
+		auto& SourceFeature = SourceFeatures[f];
+		auto& Match = FeatureMatches.PushBack();
+		Match.mSourceCoord = SourceFeature.mCoord;
+		Match.mSourceFeature = SourceFeature.mFeature;
+		
+		Match.mCoord = SourceFeature.mCoord;
+		Match.mCoord.x += 10;
+		Match.mCoord.y += 10;
+		Match.mFeature = SourceFeature.mFeature;
+	}
+
+	//	some some params back with the reply
+	TJobReply Reply( JobAndChannel );
+	Reply.mParams.AddParam( Job.mParams.GetParam("serial") );
+	
+	
+	//	gr: repalce with desired format/container
+	bool AsJson = Job.mParams.GetParamAsWithDefault("asjson", false );
+	bool AsBinary = Job.mParams.GetParamAsWithDefault("asbinary", false );
+	
+	if ( AsJson )
+	{
+		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+		std::shared_ptr<SoyData_Impl<json::Object>> FeatureMatchesJsonData( new SoyData_Stack<json::Object>() );
+		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		{
+			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		}
+	}
+	
+	if ( AsBinary )
+	{
+		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+		std::shared_ptr<SoyData_Impl<Array<char>>> FeatureMatchesJsonData( new SoyData_Stack<Array<char>>() );
+		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		{
+			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
+			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+		}
+	}
+	
+	//	add as generic
+	if ( !Reply.mParams.HasDefaultParam() )
+		Reply.mParams.AddDefaultParam( FeatureMatches );
+	
+	if ( !Error.str().empty() )
+		Reply.mParams.AddErrorParam( Error.str() );
+	
+	TChannel& Channel = JobAndChannel;
+	Channel.OnJobCompleted( Reply );
+ */
 }
 
 

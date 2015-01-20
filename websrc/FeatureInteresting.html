@@ -116,7 +116,7 @@ Div#Image
 
 </script>
 	
-	<div id="Image"><img src="" crossOrigin="anonymous" id="FeaturesImage" /><div id="ImageMarkers"></div></div>
+	<div id="Image"><img src="http://localhost:8080/file/face.jpg" crossOrigin="anonymous" id="FeaturesImage" /><div id="ImageMarkers"></div></div>
 	
 	<div>
 		<div>Features</div>
@@ -164,15 +164,8 @@ function AddImageMarker($ParentElement,$x,$y,$Colour,$Label,$z)
 }
 
 
-function ShowFeatureMatches($FeatureElement,$Matches,$Image)
+function ShowFeatureMatches($FeatureElement,$Matches)
 {
-	//	if there's a new image, replace it
-	if ( !IsUndefined($Image) )
-	{
-		var $ImageElement = GetElement('FeaturesImage');
-		$ImageElement.src = $Image;
-	}
-	
 	var $FeaturesImage = GetElement("ImageMarkers");
 	ClearImageMarkers();
 
@@ -273,7 +266,6 @@ function OnReFindInterestingFeatures($Json)
 	}
 	var $Features = $Json.default.Matches;
 	
-	/*
 	//	calc score for each feature
 	var CalcFeatureInterestingScore = function($Feature)
 	{
@@ -281,7 +273,6 @@ function OnReFindInterestingFeatures($Json)
 		$Feature.mScore = $InterestingScore;
 	};
 	forEach($Features,CalcFeatureInterestingScore);
-*/
 	
 	//	create a new div with various info/buttons
 	var $FeatureElement = document.createElement('div');
@@ -305,7 +296,7 @@ function OnReFindInterestingFeatures($Json)
 	$Inputs[1].value = $Feature;
 	$Inputs[0].onclick();
 	*/
-	ShowFeatureMatches( null, $Features, $Json.image );
+	ShowFeatureMatches( null, $Features );
 }
 
 
@@ -437,9 +428,6 @@ function OnWebsocketMessage($SoyWebSocket,$Message)
 		
 		if ( $Json.mCommand == "re:findfeature" )
 			OnReFindFeature( $Json );
-			
-		if ( $Json.mCommand == "newfeatures" )
-			OnReFindInterestingFeatures( $Json );
 	}
 	else
 	{
@@ -812,8 +800,8 @@ function MakeCmdButton($Socket,$Label,$InitialValue,$Function)
 //	main()
 
 
-var $Socket1 = new SoyWebSocket('Hub91',9030);
-var $Socket2 = new SoyWebSocket('Hub90',9031);
+var $Socket1 = new SoyWebSocket('Hub91',9090);
+var $Socket2 = new SoyWebSocket('Hub90',9091);
 $Socket1.mOnMessage = OnWebsocketMessage;
 $Socket2.mOnMessage = OnWebsocketMessage;
 //	silence connection retries
@@ -822,10 +810,8 @@ $Socket2.mOnDisconnected = function(){};
 $Socket1.mOnConnecting = function(){};
 $Socket2.mOnConnecting = function(){};
 $Socket1.mOnConnected = function() {
-	
-	var $Job = new SoyJob('subscribenewfeatures');
-	$Job.serial = "0x1a11000005ac8510";
-	SendJob($Job,false);
+	//var $Job = new SoyJob('getscene');
+	//SendJob($Job,false);
 };
 $Socket2.mOnConnected = $Socket1.mOnConnected;
 
@@ -877,6 +863,26 @@ function GetInputStepY()		{	return $gInputStepY;	}
 function GetBrighterTolerance()	{	return $gInputBrighterTolerance;	}
 function GetInputMaxMatches()	{	return $gInputMaxMatches;	}
 function GetInputBlur()			{	return $gInputBlur;	}
+
+var $GetFeatureInputs = MakeGetFeatureButton( $CommandsElement, SendJobWithImage );
+
+//	when we click on our image, set the X&Y on the get feature input
+var $OnFeaturesImageClick = function(e)
+{
+	var $Clickx = e.offsetX;
+	var $Clicky = e.offsetY;
+
+	var $Inputx = $GetFeatureInputs[1];
+	var $Inputy = $GetFeatureInputs[2];
+	$Inputx.value = $Clickx;
+	$Inputy.value = $Clicky;
+	
+	var $Button = $GetFeatureInputs[0];
+	$Button.onclick();
+};
+var $FeaturesImage = GetElement('FeaturesImage');
+$FeaturesImage.onclick = $OnFeaturesImageClick;
+
 
 
 ReconnectLoop();

@@ -12,6 +12,7 @@
 #include <SortArray.h>
 
 
+
 TPopFeatures::TPopFeatures()
 {
 	AddJobHandler("exit", TParameterTraits(), *this, &TPopFeatures::OnExit );
@@ -32,11 +33,11 @@ TPopFeatures::TPopFeatures()
 	
 	TParameterTraits TrackFeaturesTraits;
 	TrackFeaturesTraits.mAssumedKeys.PushBack("sourcefeatures");
-	TrackFeaturesTraits.mRequiredKeys.PushBack("image");
+	//TrackFeaturesTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("trackfeatures", TrackFeaturesTraits, *this, &TPopFeatures::OnTrackFeatures );
 	
 	TParameterTraits FindInterestingFeaturesTraits;
-	FindInterestingFeaturesTraits.mRequiredKeys.PushBack("image");
+	//FindInterestingFeaturesTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("findinterestingfeatures", FindInterestingFeaturesTraits, *this, &TPopFeatures::OnFindInterestingFeatures );
 }
 
@@ -162,9 +163,11 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 {
 	auto& Job = JobAndChannel.GetJob();
 	
-	//	pull image
-	auto Image = Job.mParams.GetParamAs<SoyPixels>("image");
-	if ( !Image.IsValid() )
+	//	decode image now into a param so we can send back the one we used
+	std::shared_ptr<SoyData_Stack<SoyPixels>> ImageData( new SoyData_Stack<SoyPixels>() );
+	auto& Image = ImageData->mValue;
+	auto ImageParam = Job.mParams.GetParam( TJobParam::Param_Default );
+	if ( !ImageParam.Decode( *ImageData ) )
 	{
 		std::stringstream Error;
 		Error << "Failed to decode image param (" << Image.GetFormat() << ")";
@@ -175,6 +178,12 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 		Channel.OnJobCompleted( Reply );
 		return;
 	}
+	
+	//	resize for speed
+	//	gr: put this in params!
+//	static int NewWidth = 400;
+//	static int NewHeight = 200;
+//	Image.ResizeFastSample(NewWidth,NewHeight);
 
 	//	grab a feature at each point on a grid on the image
 	TFeatureBinRingParams Params( Job.mParams );
@@ -221,15 +230,34 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
 		}
 	}
-
+	
+	
 	if ( AsBinary )
 	{
-		//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
-		std::shared_ptr<SoyData_Impl<Array<char>>> FeatureMatchesJsonData( new SoyData_Stack<Array<char>>() );
-		if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+		static bool JoinFeaturesAndImage = true;
+		
+		if ( JoinFeaturesAndImage )
 		{
-			std::shared_ptr<SoyData> FeatureMatchesJsonDataGen( FeatureMatchesJsonData );
-			Reply.mParams.AddDefaultParam( FeatureMatchesJsonDataGen );
+			TFeatureMatchesAndImage MaI;
+			SoyData_Impl<TFeatureMatchesAndImage> MaIData( MaI );
+			MaI.mFeatureMatches = FeatureMatches;
+			MaI.mImage = Image;
+			
+			//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+			std::shared_ptr<SoyData_Impl<Array<char>>> MaiBinary( new SoyData_Stack<Array<char>>() );
+			if ( MaiBinary->EncodeRaw( MaI ) )
+			{
+				Reply.mParams.AddDefaultParam( MaiBinary );
+			}
+		}
+		else
+		{
+			//	gr: the internal SoyData system doesn't know this type, so won't auto encode :/ need to work on this!
+			std::shared_ptr<SoyData_Impl<Array<char>>> FeatureMatchesJsonData( new SoyData_Stack<Array<char>>() );
+			if ( FeatureMatchesJsonData->EncodeRaw( FeatureMatches ) )
+			{
+				Reply.mParams.AddDefaultParam( FeatureMatchesJsonData );
+			}
 		}
 	}
 	
@@ -243,7 +271,14 @@ void TPopFeatures::OnFindInterestingFeatures(TJobAndChannel& JobAndChannel)
 	//	gr: need to work out a good way to automatically send back token/meta params (all the ones we didn't read?)
 	auto SerialParam = Job.mParams.GetParam("serial");
 	Reply.mParams.AddParam( SerialParam );
-	Reply.mParams.AddParam( Job.mParams.GetParam("image") );
+
+	//	gr: this sends a big payload... and a MASSIVE image as a string param!, but maybe need it at some point
+	static bool SendBackImageImage = false;
+	if ( SendBackImageImage )
+	{
+		//	gr: send back a decoded image, not the original param (which might be a now-different memfile)
+		Reply.mParams.AddParam("image",ImageData);
+	}
 	
 	TChannel& Channel = JobAndChannel;
 	Channel.OnJobCompleted( Reply );

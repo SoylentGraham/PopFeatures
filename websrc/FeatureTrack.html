@@ -180,7 +180,7 @@ function ShowFeatureMatches($FeatureElement,$Matches,$Image)
 	if ( $FeatureElement != null )
 		AddImageMarker( $FeaturesImage, $FeatureElement.mFeatureX, $FeatureElement.mFeatureY, "green", "", 10 );
 	
-	console.log($Matches);
+	//console.log($Matches);
 	var $AddMatchMarker = function($Match)
 	{
 		var $Colour = getColorForPercentage( parseFloat($Match.Score) );
@@ -273,16 +273,9 @@ function OnReFindInterestingFeatures($Json)
 	}
 	var $Features = $Json.default.Matches;
 	
-	/*
-	//	calc score for each feature
-	var CalcFeatureInterestingScore = function($Feature)
-	{
-		var $InterestingScore = 0.555;
-		$Feature.mScore = $InterestingScore;
-	};
-	forEach($Features,CalcFeatureInterestingScore);
-*/
+
 	
+	/* we get tons of responses so skip clogging up the UI
 	//	create a new div with various info/buttons
 	var $FeatureElement = document.createElement('div');
 	$ParentElement.appendChild($FeatureElement);
@@ -293,7 +286,7 @@ function OnReFindInterestingFeatures($Json)
 	$FeatureElement.appendChild($FeatureValueElement);
 	$FeatureValueElement.className = 'Value';
 	$FeatureValueElement.innerText = "found " + $Features.length + " interesting features";
-	
+	*/
 	/*
 	var $SendJobFunction = function($Job)
 	{
@@ -424,7 +417,7 @@ function OnWebsocketMessage($SoyWebSocket,$Message)
 	var $Json = ParseJson($Message);
 	if ( $Json )
 	{
-		console.log($Json);
+		//console.log($Json);
 
 		if ( $Json.error )
 			OnError( $Json.error );
@@ -839,7 +832,6 @@ function SendJobWithImage($Job)
 	stackBlurCanvasRGB_canvas( $Canvas, 0, 0, $Canvas.width, $Canvas.height, $BlurRadius );
 
 	$Job.image = CanvasToDataUri( $Canvas );
-	console.log($Job.image);
 	$Job.image_format = "datauri/base64/png";
 
 	//	send all params

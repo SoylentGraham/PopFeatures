@@ -21,6 +21,10 @@ public:
 	void			OnFindInterestingFeatures(TJobAndChannel& JobAndChannel);
 	void			OnNewFrame(TJobAndChannel& JobAndChannel);
 	
+	void			OnSendPing(TJobAndChannel& JobAndChannel);
+	void			OnRePing(TJobAndChannel& JobAndChannel);
+
+	
 public:
 	Soy::Platform::TConsoleApp	mConsoleApp;
 };

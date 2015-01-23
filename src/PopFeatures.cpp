@@ -40,6 +40,12 @@ TPopFeatures::TPopFeatures()
 	TParameterTraits FindInterestingFeaturesTraits;
 	//FindInterestingFeaturesTraits.mRequiredKeys.PushBack("image");
 	AddJobHandler("findinterestingfeatures", FindInterestingFeaturesTraits, *this, &TPopFeatures::OnFindInterestingFeatures );
+	
+	TParameterTraits SendPingTraits;
+	SendPingTraits.mAssumedKeys.PushBack("channel");
+	AddJobHandler("sendping", SendPingTraits, *this, &TPopFeatures::OnSendPing );
+
+	AddJobHandler("re:ping", TParameterTraits(), *this, &TPopFeatures::OnRePing );
 }
 
 void TPopFeatures::AddChannel(std::shared_ptr<TChannel> Channel)
@@ -124,6 +130,91 @@ void TPopFeatures::OnGetFeature(TJobAndChannel& JobAndChannel)
 	
 	TChannel& Channel = JobAndChannel;
 	Channel.OnJobCompleted( Reply );
+}
+
+
+void TPopFeatures::OnSendPing(TJobAndChannel &JobAndChannel)
+{
+	const TJob& Job = JobAndChannel;
+	
+	//	find the target channel to send to
+	auto PingChannelString = Job.mParams.GetParamAs<std::string>("channel");
+	SoyRef PingChannelRef( PingChannelString.c_str() );
+
+	//	nothing or * sends to all
+	if ( PingChannelString == "*" )
+		PingChannelRef = SoyRef();
+	auto PingChannel = GetChannel( PingChannelRef );
+	
+	if ( !PingChannel && PingChannelRef != SoyRef() )
+	{
+		//	get a list of channels
+		std::stringstream Error;
+		Error << "Channel " << PingChannelRef << " not found; try... ";
+		auto& Channels = mChannels;
+		for ( auto it=Channels.begin();	it!=Channels.end();	it++ )
+		{
+			auto& Channel = **it;
+			Error << Channel.GetChannelRef() << " ";
+		}
+		
+		TJobReply Reply( JobAndChannel );
+		Reply.mParams.AddErrorParam( Error.str() );
+		TChannel& Channel = JobAndChannel;
+		Channel.OnJobCompleted( Reply );
+		return;
+	}
+	
+	//	send new command via specified channel
+	TJob PingCommand;
+	PingCommand.mParams.mCommand = "ping";
+	
+	//	make a ping by sending the current timestamp then we compare it on return
+	SoyTime Now(true);
+	PingCommand.mParams.AddParam("sendtime", Now );
+
+	//	if no ping channel, send to all (good test)
+	if ( PingChannel )
+	{
+		PingCommand.mChannelMeta.mChannelRef = PingChannel->GetChannelRef();
+		PingChannel->SendCommand( PingCommand );
+	}
+	else
+	{
+		auto& Channels = mChannels;
+		for ( auto it=Channels.begin();	it!=Channels.end();	it++ )
+		{
+			auto& Channel = **it;
+			PingCommand.mChannelMeta.mChannelRef = Channel.GetChannelRef();
+			Channel.SendCommand( PingCommand );
+		}
+	}
+}
+
+void TPopFeatures::OnRePing(TJobAndChannel &JobAndChannel)
+{
+	const TJob& Job = JobAndChannel;
+	TJobReply Reply( JobAndChannel );
+	
+	//	read the send time
+	auto SendTime = Job.mParams.GetParamAs<SoyTime>("sendtime");
+	SoyTime Now(true);
+	
+	if ( !SendTime.IsValid() )
+	{
+		std::Debug << Job.mParams.mCommand << " has invalid send time, cannot calculate ping :(" << std::endl;
+		return;
+	}
+	
+	//	compare against now
+	if ( SendTime.GetTime() > Now.GetTime() )
+	{
+		std::Debug << Job.mParams.mCommand << " sendtime(" << SendTime.GetTime() << ") is in future (now: " << Now.GetTime() << ")" << std::endl;
+		return;
+	}
+	
+	auto TimeDiff = Now.GetTime() - SendTime.GetTime();
+	std::Debug << Job.mParams.mCommand << " ping is " << TimeDiff << "ms" << std::endl;
 }
 
 
@@ -501,7 +592,9 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	CommandLineChannel->mOnJobSent.AddListener( RelayFunc );
 	
 	//	connect to another app, and subscribe to frames
-	bool CreateCaptureChannel = false;
+	static bool CreateCaptureChannel = true;
+	static bool SubscribeToCapture = false;
+	static bool SendStdioToCapture = false;
 	if ( CreateCaptureChannel )
 	{
 		auto CaptureChannel = CreateChannelFromInputString("cli://localhost:7070", SoyRef("capture") );
@@ -510,28 +603,34 @@ TPopAppError::Type PopMain(TJobParams& Params)
 		App.AddChannel( CaptureChannel );
 		
 		//	send commands from stdio to new channel
-		auto SendToCaptureFunc = [](TJobAndChannel& JobAndChannel)
+		if ( SendStdioToCapture )
 		{
-			TJob Job = JobAndChannel;
-			Job.mChannelMeta.mChannelRef = gStdioChannel->GetChannelRef();
-			Job.mChannelMeta.mClientRef = SoyRef();
-			gCaptureChannel->SendCommand( Job );
-		};
-		gStdioChannel->mOnJobRecieved.AddListener( SendToCaptureFunc );
+			auto SendToCaptureFunc = [](TJobAndChannel& JobAndChannel)
+			{
+				TJob Job = JobAndChannel;
+				Job.mChannelMeta.mChannelRef = gStdioChannel->GetChannelRef();
+				Job.mChannelMeta.mClientRef = SoyRef();
+				gCaptureChannel->SendCommand( Job );
+			};
+			gStdioChannel->mOnJobRecieved.AddListener( SendToCaptureFunc );
+		}
 		
-		auto StartSubscription = [](TChannel& Channel)
+		if ( SubscribeToCapture )
 		{
-			TJob GetFrameJob;
-			GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
-			//GetFrameJob.mParams.mCommand = "subscribenewframe";
-			//GetFrameJob.mParams.AddParam("serial", "isight" );
-			GetFrameJob.mParams.mCommand = "getframe";
-			GetFrameJob.mParams.AddParam("serial", "isight" );
-			GetFrameJob.mParams.AddParam("memfile", "1" );
-			Channel.SendCommand( GetFrameJob );
-		};
-		
-		CaptureChannel->mOnConnected.AddListener( StartSubscription );
+			auto StartSubscription = [](TChannel& Channel)
+			{
+				TJob GetFrameJob;
+				GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
+				//GetFrameJob.mParams.mCommand = "subscribenewframe";
+				//GetFrameJob.mParams.AddParam("serial", "isight" );
+				GetFrameJob.mParams.mCommand = "getframe";
+				GetFrameJob.mParams.AddParam("serial", "isight" );
+				GetFrameJob.mParams.AddParam("memfile", "1" );
+				Channel.SendCommand( GetFrameJob );
+			};
+	
+			CaptureChannel->mOnConnected.AddListener( StartSubscription );
+		}
 	}
 	
 	

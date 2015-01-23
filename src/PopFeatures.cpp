@@ -169,10 +169,18 @@ void TPopFeatures::OnSendPing(TJobAndChannel &JobAndChannel)
 	TJob PingCommand;
 	PingCommand.mParams.mCommand = "ping";
 	
+	//	lets add something big!
+	Array<char> Dummy(10000);
+	for ( int i=0;	i<Dummy.GetSize();	i++ )
+	{
+		Dummy[i] = i % 256;
+	}
+	PingCommand.mParams.AddParam("somebuffer", Dummy );
+	
 	//	make a ping by sending the current timestamp then we compare it on return
 	SoyTime Now(true);
 	PingCommand.mParams.AddParam("sendtime", Now );
-
+	
 	//	if no ping channel, send to all (good test)
 	if ( PingChannel )
 	{
@@ -194,7 +202,6 @@ void TPopFeatures::OnSendPing(TJobAndChannel &JobAndChannel)
 void TPopFeatures::OnRePing(TJobAndChannel &JobAndChannel)
 {
 	const TJob& Job = JobAndChannel;
-	TJobReply Reply( JobAndChannel );
 	
 	//	read the send time
 	auto SendTime = Job.mParams.GetParamAs<SoyTime>("sendtime");
@@ -214,6 +221,10 @@ void TPopFeatures::OnRePing(TJobAndChannel &JobAndChannel)
 	}
 	
 	auto TimeDiff = Now.GetTime() - SendTime.GetTime();
+	
+	//	gr: because sometimes the reply is so quick, this gets mangled with other std::debug (locking stillisnt working!)
+	//		so for now lets sleep so we cna read the ping
+	std::this_thread::sleep_for( std::chrono::milliseconds(1000) );
 	std::Debug << Job.mParams.mCommand << " ping is " << TimeDiff << "ms" << std::endl;
 }
 

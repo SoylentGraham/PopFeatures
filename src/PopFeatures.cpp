@@ -175,17 +175,19 @@ void TPopFeatures::OnSendPing(TJobAndChannel &JobAndChannel)
 	{
 		Dummy[i] = i % 256;
 	}
-	PingCommand.mParams.AddParam("somebuffer", Dummy );
+	PingCommand.mParams.AddDefaultParam( Dummy );
 	
 	//	make a ping by sending the current timestamp then we compare it on return
 	SoyTime Now(true);
 	PingCommand.mParams.AddParam("sendtime", Now );
 	
 	//	if no ping channel, send to all (good test)
+	Array<SoyRef> SentToChannels;
 	if ( PingChannel )
 	{
 		PingCommand.mChannelMeta.mChannelRef = PingChannel->GetChannelRef();
-		PingChannel->SendCommand( PingCommand );
+		if ( PingChannel->SendCommand( PingCommand ) )
+			SentToChannels.PushBack( PingChannel->GetChannelRef() );
 	}
 	else
 	{
@@ -194,9 +196,21 @@ void TPopFeatures::OnSendPing(TJobAndChannel &JobAndChannel)
 		{
 			auto& Channel = **it;
 			PingCommand.mChannelMeta.mChannelRef = Channel.GetChannelRef();
-			Channel.SendCommand( PingCommand );
+			if ( Channel.SendCommand( PingCommand ) )
+				SentToChannels.PushBack( Channel.GetChannelRef() );
 		}
 	}
+	
+	//	gratuity reply (for http etc)
+	TJobReply Reply( JobAndChannel );
+	std::stringstream ReplyString;
+	ReplyString << "send ping to " << SentToChannels.GetSize() << " channels; ";
+	for ( int i=0;	i<SentToChannels.GetSize();	i++ )
+		ReplyString << SentToChannels[i] << " ";
+	Reply.mParams.AddDefaultParam( ReplyString.str() );
+	TChannel& Channel = JobAndChannel;
+	Channel.OnJobCompleted( Reply );
+
 }
 
 void TPopFeatures::OnRePing(TJobAndChannel &JobAndChannel)

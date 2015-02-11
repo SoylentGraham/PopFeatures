@@ -24,6 +24,7 @@ public:
 	void			OnSendPing(TJobAndChannel& JobAndChannel);
 	void			OnRePing(TJobAndChannel& JobAndChannel);
 
+	void			OnDecode(TJobAndChannel& JobAndChannel);
 	
 public:
 	Soy::Platform::TConsoleApp	mConsoleApp;

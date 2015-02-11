@@ -218,6 +218,8 @@
 		FBC3A0DF1A308648009DA49E /* SoyScope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SoyScope.cpp; path = ../ofxSoylent/src/SoyScope.cpp; sourceTree = "<group>"; };
 		FBC3A0E01A308648009DA49E /* SoyScope.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SoyScope.h; path = ../ofxSoylent/src/SoyScope.h; sourceTree = "<group>"; };
 		FBC3A0E51A328A56009DA49E /* websrc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = websrc; sourceTree = SOURCE_ROOT; };
+		FBE822761A792CFA00383F3B /* File */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = File; path = ../../../Users/grahamr/Desktop/mapdump/File; sourceTree = "<group>"; };
+		FBE822771A79427200383F3B /* maptest.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; name = maptest.html; path = ../../../Users/grahamr/Desktop/mapdump/maptest.html; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -256,6 +258,8 @@
 		FB8A058A1A2E54730099596C = {
 			isa = PBXGroup;
 			children = (
+				FBE822761A792CFA00383F3B /* File */,
+				FBE822771A79427200383F3B /* maptest.html */,
 				FBB3284C1A2E75EF003DE7AA /* CoreVideo.framework */,
 				FBB328481A2E75D4003DE7AA /* CoreMedia.framework */,
 				FBB328491A2E75D4003DE7AA /* CoreMediaIO.framework */,

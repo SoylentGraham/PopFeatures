@@ -46,6 +46,9 @@ TPopFeatures::TPopFeatures()
 	AddJobHandler("sendping", SendPingTraits, *this, &TPopFeatures::OnSendPing );
 
 	AddJobHandler("re:ping", TParameterTraits(), *this, &TPopFeatures::OnRePing );
+
+	
+	AddJobHandler("decode", TParameterTraits(), *this, &TPopFeatures::OnDecode );
 }
 
 void TPopFeatures::AddChannel(std::shared_ptr<TChannel> Channel)
@@ -170,7 +173,7 @@ void TPopFeatures::OnSendPing(TJobAndChannel &JobAndChannel)
 	PingCommand.mParams.mCommand = "ping";
 	
 	//	lets add something big!
-	Array<char> Dummy(10000);
+	Array<char> Dummy(900000);
 	for ( int i=0;	i<Dummy.GetSize();	i++ )
 	{
 		Dummy[i] = i % 256;
@@ -617,7 +620,7 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	CommandLineChannel->mOnJobSent.AddListener( RelayFunc );
 	
 	//	connect to another app, and subscribe to frames
-	static bool CreateCaptureChannel = true;
+	static bool CreateCaptureChannel = false;
 	static bool SubscribeToCapture = false;
 	static bool SendStdioToCapture = false;
 	if ( CreateCaptureChannel )
@@ -659,41 +662,15 @@ TPopAppError::Type PopMain(TJobParams& Params)
 	}
 	
 	
-	/*
-	std::string TestFilename = "/users/grahamr/Desktop/ringo.png";
-	
-	//	gr: bootup commands
-	auto BootupGet = [TestFilename](TChannel& Channel)
 	{
-		TJob GetFrameJob;
-		GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
-		GetFrameJob.mParams.mCommand = "getfeature";
-		GetFrameJob.mParams.AddParam("x", 120 );
-		GetFrameJob.mParams.AddParam("y", 120 );
-		GetFrameJob.mParams.AddParam("image", TestFilename, TJobFormat("text/file/png") );
-		Channel.OnJobRecieved( GetFrameJob );
-	};
-	
-	auto BootupMatch = [TestFilename](TChannel& Channel)
-	{
-		TJob GetFrameJob;
-		GetFrameJob.mChannelMeta.mChannelRef = Channel.GetChannelRef();
-		GetFrameJob.mParams.mCommand = "findfeature";
-		GetFrameJob.mParams.AddParam("feature", "01011000000000001100100100000000" );
-		GetFrameJob.mParams.AddParam("image", TestFilename, TJobFormat("text/file/png") );
-		Channel.OnJobRecieved( GetFrameJob );
-	};
-	
-
-	//	auto BootupFunc = BootupMatch;
-	//auto BootupFunc = BootupGet;
-	auto BootupFunc = BootupMatch;
-	if ( CommandLineChannel->IsConnected() )
-		BootupFunc( *CommandLineChannel );
-	else
-		CommandLineChannel->mOnConnected.AddListener( BootupFunc );
-*/
-	
+		auto& Channel = *CommandLineChannel;
+		TJob Job;
+		Job.mChannelMeta.mChannelRef = Channel.GetChannelRef();
+		Job.mParams.mCommand = "decode";
+		std::string Filename = "/Users/grahamr/Desktop/mapdump/data1.txt";
+		Job.mParams.AddDefaultParam( Filename, "text/file/binary" );
+		Channel.OnJobRecieved(Job);
+	}
 	
 	//	run
 	App.mConsoleApp.WaitForExit();
@@ -703,5 +680,249 @@ TPopAppError::Type PopMain(TJobParams& Params)
 }
 
 
+class TProtoBuf
+{
+public:
+	TProtoBuf(ArrayBridge<char>&& Data)
+	{
+		Decode(Data);
+	}
+	
+	bool		Decode(ArrayBridge<char>& Data);
+	
+	int			GetVarInt(char* Data,int Bytes);
+	
+public:
+};
 
+
+#include <bitset>
+
+namespace TProtoBufFieldType
+{
+	enum Type
+	{
+		Varint	= 0,		//	Varint	int32, int64, uint32, uint64, sint32, sint64, bool, enum
+		SixtyFourBit = 1,	//	64-bit	fixed64, sfixed64, double
+		LengthDelim = 2,	//	Length-delimited	string, bytes, embedded messages, packed repeated fields
+		StartGroup = 3,		//	Start group	groups (deprecated)
+		EndGroup = 4,		//	End group	groups (deprecated)
+		ThirtyTwoBit = 5,	//	32-bit	fixed32, sfixed32, float
+	};
+	
+};
+
+
+bool EatVarInt(uint64& Varint,TBitReader& BitReader)
+{
+	
+	BufferArray<uint8,10> IntParts;
+	int MoreData = 0;
+	do
+	{
+		//	eat MSB bit
+		if ( !BitReader.Read( MoreData, 1 ) )
+			return false;
+		
+		uint8 IntPart;
+		if ( !BitReader.Read( IntPart, 7 ) )
+			return false;
+		IntParts.PushBack(IntPart);
+	}
+	while ( MoreData );
+
+	//	If you use int32 or int64 as the type for a negative number, the resulting varint is always ten bytes long
+	//	– it is, effectively, treated like a very large unsigned integer.
+	if ( IntParts.GetSize() == 10 )
+	{
+		std::Debug << "handle negative int32/int64" << std::endl;
+		return false;
+	}
+
+	//	zig zag encoding
+	// If you use one of the signed types, the resulting varint uses ZigZag encoding, which is much more efficient.
+
+		 
+	BufferArray<char,100> IntContents;
+	Varint = 0;
+	for ( int p=0;	p<IntParts.GetSize();	p++ )
+		Varint |= IntParts[p] << (7*p);
+
+	int BitCount = IntParts.GetSize() * 7;
+	
+	if ( !Soy::Assert( BitCount <= 64, std::stringstream()<<"Varint is " << BitCount << "bits (" << Varint << ") . we max at 32" ) )
+		return false;
+
+	return true;
+}
+
+
+uint64 TestEat2()
+{
+	BufferArray<char,100> ThreeHundred;
+	ThreeHundred.PushBack(0xAC);
+	ThreeHundred.PushBack(0x02);
+	
+	TBitReader BitReader( GetArrayBridge(ThreeHundred) );
+	
+	uint64 KeyType;
+	if ( !EatVarInt( KeyType, BitReader ) )
+		return false;
+	
+	std::Debug << KeyType << " = 300 ? " << std::endl;
+	
+	return KeyType;
+}
+
+
+uint64 TestEat()
+{
+	BufferArray<char,100> One;
+	One.PushBack( 0x00000001 );
+	
+	TBitReader BitReader( GetArrayBridge(One) );
+
+	uint64 KeyType;
+	if ( !EatVarInt( KeyType, BitReader ) )
+		return false;
+
+	std::Debug << KeyType << " = 1 ? " << std::endl;
+
+	return KeyType;
+}
+
+TJobParam ReadParamData(TBitReader& BitReader,TProtoBufFieldType::Type Type)
+{
+	switch ( Type )
+	{
+		case TProtoBufFieldType::Varint:
+		{
+			uint64 Value;
+			if ( !EatVarInt( Value, BitReader ) )
+				return TJobParam();
+			
+			int ValueInt = Value;
+			TJobParam Param;
+			Param.mSoyData.reset( new SoyData_Stack<int>(ValueInt) );
+			return Param;
+		}
+		break;
+			
+
+
+		default:
+			std::Debug << "Unhandled type: " << Type << std::endl;
+			return TJobParam();
+	}
+}
+
+TJobParam ReadNextElement(TBitReader& BitReader)
+{
+	//	read key
+	uint64 Key;
+	if ( !EatVarInt( Key, BitReader ) )
+		return TJobParam();
+		
+	//	type is first 3 bits
+	auto Type = static_cast<TProtoBufFieldType::Type>( Key & (0x7) );
+	uint64 Field = Key >> 3;
+	
+	//	fields start at 1
+	if ( Field == 0 )
+		return TJobParam();
+
+	TJobParam Param = ReadParamData( BitReader, Type );
+	Param.mName = (std::stringstream() << Field).str();
+
+	return Param;
+}
+
+
+//	https://developers.google.com/protocol-buffers/docs/encoding
+bool TProtoBuf::Decode(ArrayBridge<char>& Data)
+{
+	TestEat();
+	TestEat2();
+	
+	static bool DoSimpleExample = false;
+	if ( DoSimpleExample )
+	{
+		//	simple example is 150 int32
+		Data.Clear();
+		Data.PushBack(0x8);
+		Data.PushBack(0x96);
+		Data.PushBack(0x1);
+	}
+	std::Debug << "proto buf " << Data.GetDataSize() << " bytes" << std::endl;
+	
+	
+
+	TBitReader BitReader(Data);
+	TJobParams Params;
+	
+	while ( !BitReader.Eof() )
+	{
+		TJobParam Param = ReadNextElement( BitReader );
+		if ( !Param.IsValid() )
+			return false;
+		Params.AddParam( Param );
+	}
+	std::Debug << "read protobuf params: " << Params << std::endl;
+
+	/*
+	//	read the EOF msb
+	int Eof;
+	if ( !BitReader.Read( Eof, 1 ) )
+		return false;
+	//	rea
+	*/
+	
+	//	read key index
+	
+	return false;
+}
+
+
+
+void TPopFeatures::OnDecode(TJobAndChannel& JobAndChannel)
+{
+	auto DataParam = JobAndChannel.GetJob().mParams.GetDefaultParam();
+	TJobReply Reply( JobAndChannel.GetJob() );
+	
+	std::stringstream Error;
+	Array<char> Binary;
+	
+	//	gr: if it's binary on the outside (from the channel), we need to decode once
+	if ( DataParam.GetFormat().GetFirstContainer() == Soy::GetTypeName<Array<char>>() )
+		DataParam.DecodeFirstContainer();
+
+	//	gr: problem with algo? file/gzip/binary, decode to binary, just decodes file to binary...
+	//		need to decide whether to decode all, or decode asap...
+	while ( DataParam.DecodeFirstContainer() )
+	{
+	}
+	
+	if ( !DataParam.Decode( Binary ) )
+	{
+		Error << "failed to decode to binary" << std::endl;
+	}
+	else
+	{
+		TProtoBuf ProtoBuf( GetArrayBridge(Binary) );
+		std::stringstream Output;
+		Output << "decoded to " << Binary.GetDataSize() << " bytes. ";
+		
+		int Remainder = Binary.GetDataSize() % sizeof(uint32);
+		Output << "32 bit remainder; " << Remainder;
+		
+		Reply.mParams.AddDefaultParam( Output.str() );
+		
+	}
+	
+	if ( !Error.str().empty() )
+		Reply.mParams.AddErrorParam( Error.str() );
+	
+
+	JobAndChannel.GetChannel().SendJobReply( Reply );
+}
 
